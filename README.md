@@ -6,14 +6,20 @@ This server provides document submission checklist management — defining requi
 
 ```
 検証者（管理者）側:
-  create_checklist → add_item → add_sample（見本・必要記入項目を定義）
-                              → add_validation_rule（確認ルールを定義）
+  create_checklist → add_item → add_sample（.docx/.xlsx のテンプレートを登録）
+                              ↓ MCPが {{field_name}} プレースホルダーを自動抽出
+                              → add_validation_rule（追加の確認ルールがあれば）
 
 提出者側:
-  submit_item → [Claudeが提出物をサンプルと照合]
-             → record_validation_result(pass/fail)
-             → 全ルールpassなら提出確定 ✅ / failならブロック ❌
+  [提出書類を用意]
+  → validate_submission（MCPがファイルを読み、全プレースホルダーが埋まっているか自動判定）
+  → submit_item（全チェックpassなら提出確定 ✅ / failならブロック ❌）
 ```
+
+### サンプルファイルの規約
+- 形式: **Word (.docx) または Excel (.xlsx) のみ**
+- 記入必須箇所は `{{field_name}}` 形式で明示（例: `{{氏名}}`、`{{住所}}`、`{{発行日}}`）
+- MCPが自動でプレースホルダーを抽出し、確認すべき項目リストとして登録する
 
 ## Usage
 
@@ -44,9 +50,9 @@ This server provides document submission checklist management — defining requi
 ### Sample Templates
 | Tool | Arguments | Description |
 |---|---|---|
-| `add_sample` | `checklist_id`, `item_id`, `description`, `file_path?`, `required_fields?` | Register a sample with required fields |
+| `add_sample` | `checklist_id`, `item_id`, `description`, `file_path` | Register a .docx/.xlsx template; required fields auto-extracted from `{{placeholders}}` |
+| `validate_submission` | `checklist_id`, `item_id`, `sample_id`, `submission_file_path` | MCP reads the submitted file and checks all `{{placeholders}}` are filled |
 | `get_samples` | `checklist_id`, `item_id` | Get samples for a document item |
-| `add_sample_field` | `checklist_id`, `item_id`, `sample_id`, `field_name`, `required?`, `description?` | Add a required field to a sample |
 | `delete_sample` | `checklist_id`, `item_id`, `sample_id` | Remove a sample |
 
 ### Validation
@@ -114,7 +120,7 @@ src/
 │   ├── constants.ts        # Tool schemas and constants
 │   └── message-handler.ts  # MCP message handling
 ├── handlers/
-│   └── tool-handler.ts     # Tool handlers (15 tools)
+│   └── tool-handler.ts     # Tool handlers (16 tools)
 ├── services/
 │   └── checklist-service.ts  # Business logic
 ├── types/
@@ -122,9 +128,10 @@ src/
 │   └── checklist.ts        # Checklist / ValidationRule / ItemSample types
 └── utils/
     ├── logger.ts           # Logging
-    └── validator.ts        # Validation
+    ├── validator.ts        # Validation
+    └── doc-parser.ts       # Word/Excel text extraction & placeholder detection
 tests/
-└── checklist.test.ts       # Unit & integration tests (54 cases)
+└── checklist.test.ts       # Unit & integration tests (67 cases)
 ```
 
 ## Development
