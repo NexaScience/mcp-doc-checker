@@ -1,8 +1,8 @@
 # MCP: Document Checker
 
-This server provides document submission checklist management — defining required documents with sample templates, and validating submissions against them before acceptance.
+提出書類のチェックリスト管理サーバー。必要書類のリストとサンプルテンプレートを定義し、提出物がすべての記入項目を満たしているかを自動で検証します。
 
-## How It Works
+## 動作の流れ
 
 ```
 検証者（管理者）側:
@@ -21,94 +21,94 @@ This server provides document submission checklist management — defining requi
 - 記入必須箇所は `{{field_name}}` 形式で明示（例: `{{氏名}}`、`{{住所}}`、`{{発行日}}`）
 - MCPが自動でプレースホルダーを抽出し、確認すべき項目リストとして登録する
 
-## Usage
+## 使い方
 
-| Feature | Example |
+| 機能 | 例 |
 |---|---|
-| Create Checklist | "Create a checklist for new employee onboarding" |
-| Add Item | "Add 'Residence certificate' as a required document" |
-| Add Sample | "Register a sample showing required fields: name, address, issue date" |
-| Add Validation Rule | "Add a rule to check that My Number is masked" |
-| Record Validation Result | "I checked the document — all fields are filled and masking is confirmed" |
-| Submit Item | "Mark the residence certificate as submitted" |
-| Get Missing | "Show me which required documents are still missing" |
-| Get Checklist | "Show the full status of the onboarding checklist" |
+| チェックリスト作成 | 「入社手続きのチェックリストを作って」 |
+| 書類追加 | 「住民票を必須書類として追加して」 |
+| サンプル登録 | 「住民票確認のサンプルファイルを登録して」 |
+| バリデーションルール追加 | 「マイナンバーがマスキングされているか確認するルールを追加して」 |
+| 提出物の検証 | 「この住民票ファイルを検証して」 |
+| 提出記録 | 「住民票を提出済みにして」 |
+| 未提出一覧 | 「まだ提出されていない必須書類を教えて」 |
+| 状況確認 | 「入社手続きチェックリストの状況を見せて」 |
 
-## Tools
+## ツール一覧
 
-### Checklist Management
-| Tool | Arguments | Description |
+### チェックリスト管理
+| ツール | 引数 | 説明 |
 |---|---|---|
-| `create_checklist` | `name`, `description?` | Create a checklist |
-| `add_item` | `checklist_id`, `name`, `description?`, `required?` | Add a required document |
-| `submit_item` | `checklist_id`, `item_id`, `note?`, `force_submit?` | Record submission (blocked if validation fails) |
-| `get_checklist` | `checklist_id` | Get full checklist status |
-| `get_missing` | `checklist_id` | List unsubmitted required documents |
-| `list_checklists` | — | List all checklists |
-| `delete_checklist` | `checklist_id` | Delete a checklist |
+| `create_checklist` | `name`, `description?` | チェックリストを作成 |
+| `add_item` | `checklist_id`, `name`, `description?`, `required?` | 必要書類を追加 |
+| `submit_item` | `checklist_id`, `item_id`, `note?`, `force_submit?` | 提出を記録（バリデーション未通過の場合はブロック） |
+| `get_checklist` | `checklist_id` | チェックリスト全体の状況を取得 |
+| `get_missing` | `checklist_id` | 未提出の必須書類一覧を取得 |
+| `list_checklists` | — | 全チェックリストの一覧 |
+| `delete_checklist` | `checklist_id` | チェックリストを削除 |
 
-### Sample Templates
-| Tool | Arguments | Description |
+### サンプルテンプレート
+| ツール | 引数 | 説明 |
 |---|---|---|
-| `add_sample` | `checklist_id`, `item_id`, `description`, `file_path` | Register a .docx/.xlsx template; required fields auto-extracted from `{{placeholders}}` |
-| `validate_submission` | `checklist_id`, `item_id`, `sample_id`, `submission_file_path` | MCP reads the submitted file and checks all `{{placeholders}}` are filled |
-| `get_samples` | `checklist_id`, `item_id` | Get samples for a document item |
-| `delete_sample` | `checklist_id`, `item_id`, `sample_id` | Remove a sample |
+| `add_sample` | `checklist_id`, `item_id`, `description`, `file_path` | .docx/.xlsx テンプレートを登録。`{{プレースホルダー}}` から必要項目を自動抽出 |
+| `validate_submission` | `checklist_id`, `item_id`, `sample_id`, `submission_file_path` | 提出ファイルを読み込み、全プレースホルダーが埋まっているかMCPが自動判定 |
+| `get_samples` | `checklist_id`, `item_id` | 書類に登録されたサンプル一覧を取得 |
+| `delete_sample` | `checklist_id`, `item_id`, `sample_id` | サンプルを削除 |
 
-### Validation
-| Tool | Arguments | Description |
+### バリデーション
+| ツール | 引数 | 説明 |
 |---|---|---|
-| `add_validation_rule` | `checklist_id`, `item_id`, `type`, `description` | Add a validation rule to a document item |
-| `record_validation_result` | `checklist_id`, `item_id`, `rule_id`, `outcome`, `reason` | Record Claude's check result (`pass`/`fail`) |
-| `get_validation_rules` | `checklist_id`, `item_id` | Get rules and latest results for an item |
-| `delete_validation_rule` | `checklist_id`, `item_id`, `rule_id` | Remove a rule |
+| `add_validation_rule` | `checklist_id`, `item_id`, `type`, `description` | 書類にバリデーションルールを追加 |
+| `record_validation_result` | `checklist_id`, `item_id`, `rule_id`, `outcome`, `reason` | Claudeの確認結果を記録（`pass`/`fail`） |
+| `get_validation_rules` | `checklist_id`, `item_id` | ルールと最新の検証結果を取得 |
+| `delete_validation_rule` | `checklist_id`, `item_id`, `rule_id` | ルールを削除 |
 
-### Validation Rule Types
-| Type | Description |
+### バリデーションルールの種類
+| タイプ | 説明 |
 |---|---|
-| `file_uploaded` | A file has been attached |
-| `no_masking_omission` | Required fields (e.g. My Number) are properly masked |
-| `correct_document` | The correct document type has been submitted |
-| `custom` | Any condition described in natural language (e.g. "all sample fields are filled") |
+| `file_uploaded` | ファイルが添付されているか |
+| `no_masking_omission` | マイナンバー等のマスキング漏れがないか |
+| `correct_document` | 正しい書類種別が提出されているか |
+| `custom` | 自然言語で記述した任意の確認条件 |
 
-## Sample Files
+## サンプルファイル
 
-Template files are provided in the `samples/` directory:
+`samples/` ディレクトリにテンプレートファイルが用意されています：
 
-| File | Description | Fields |
+| ファイル | 説明 | 項目数 |
 |---|---|---|
 | `samples/onboarding-form.xlsx` | 入社情報フォーム | 入社日・氏名・住所・口座情報など14項目 |
 | `samples/residence-certificate-check.xlsx` | 住民票確認チェックリスト | 発行日・マイナンバーマスキング確認など8項目 |
 | `samples/employment-contract-check.docx` | 雇用契約書確認フォーム | 会社名・労働条件・署名確認など13項目 |
 
-All templates use `{{field_name}}` placeholders to mark required fields. Pass any of these to `add_sample` and the MCP will auto-extract the field list.
+すべてのテンプレートは `{{field_name}}` 形式のプレースホルダーで記入必須箇所を明示しています。`add_sample` に渡すと、MCPが自動でフィールドリストを抽出します。
 
-## Installation
+## インストール
 
-1. Clone this repository:
+1. リポジトリをクローン:
 
 ```bash
 git clone https://github.com/NexaScience/mcp-doc-checker
 cd mcp-doc-checker
 ```
 
-2. Install dependencies:
+2. 依存関係をインストール:
 
 ```bash
 npm install
 ```
 
-3. Build the server:
+3. ビルド:
 
 ```bash
 npm run build
 ```
 
-> Run this before adding to your MCP host.
+> MCPホストに追加する前に必ず実行してください。
 
-## Setup
+## セットアップ
 
-Add to your MCP host's config file ([see host-specific instructions](https://modelcontextprotocol.io/quickstart/user)):
+MCPホストの設定ファイルに追加します（[ホスト別の手順はこちら](https://modelcontextprotocol.io/quickstart/user)）：
 
 ```json
 {
@@ -121,34 +121,34 @@ Add to your MCP host's config file ([see host-specific instructions](https://mod
 }
 ```
 
-Restart the host after saving.
+保存後、ホストを再起動してください。
 
-## Project Structure
+## プロジェクト構成
 
 ```
 src/
-├── server.ts               # Entry point
+├── server.ts               # エントリーポイント
 ├── core/
-│   ├── constants.ts        # Tool schemas and constants
-│   └── message-handler.ts  # MCP message handling
+│   ├── constants.ts        # ツールスキーマ・定数
+│   └── message-handler.ts  # MCPメッセージハンドリング
 ├── handlers/
-│   └── tool-handler.ts     # Tool handlers (16 tools)
+│   └── tool-handler.ts     # ツールハンドラー（16ツール）
 ├── services/
-│   └── checklist-service.ts  # Business logic
+│   └── checklist-service.ts  # ビジネスロジック
 ├── types/
-│   ├── mcp.ts              # MCP base types
-│   └── checklist.ts        # Checklist / ValidationRule / ItemSample types
+│   ├── mcp.ts              # MCP基盤型定義
+│   └── checklist.ts        # Checklist / ValidationRule / ItemSample 型定義
 └── utils/
-    ├── logger.ts           # Logging
-    ├── validator.ts        # Validation
-    └── doc-parser.ts       # Word/Excel text extraction & placeholder detection
+    ├── logger.ts           # ロギング
+    ├── validator.ts        # バリデーション
+    └── doc-parser.ts       # Word/Excel テキスト抽出・プレースホルダー検出
 tests/
-└── checklist.test.ts       # Unit & integration tests (67 cases)
+└── checklist.test.ts       # ユニット・統合テスト（67件）
 ```
 
-## Development
+## 開発
 
-- `npm run dev` - Run server in development mode
-- `npm run build` - Build the TypeScript code
-- `npm run watch` - Build and watch for changes
-- `npm test` - Run tests
+- `npm run dev` - 開発モードで起動
+- `npm run build` - TypeScript をビルド
+- `npm run watch` - 変更を監視しながらビルド
+- `npm test` - テストを実行
