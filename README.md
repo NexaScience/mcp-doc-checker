@@ -77,6 +77,26 @@ To use this MCP server with Claude Desktop, you need to add it to your Claude De
 
 3. Restart Claude Desktop for the changes to take effect.
 
+## Project Structure
+
+```
+src/
+├── server.ts               # Entry point
+├── core/
+│   ├── constants.ts        # Constants
+│   └── message-handler.ts  # MCP message handling
+├── handlers/
+│   ├── tool-handler.ts     # Tool handlers
+│   └── resource-handler.ts # Resource handlers
+├── services/
+│   └── task-service.ts     # Business logic
+├── types/
+│   └── mcp.ts              # TypeScript types
+└── utils/
+    ├── logger.ts           # Logging
+    └── validator.ts        # Validation
+```
+
 ## Development
 
 - `npm run dev` - Run server in development mode
