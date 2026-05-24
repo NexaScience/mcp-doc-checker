@@ -230,6 +230,119 @@ const toolDefinitions: MCPTool[] = [
       },
       required: ['checklist_id', 'item_id', 'rule_id']
     }
+  },
+  {
+    name: 'add_sample',
+    description: 'Adds a sample (template document) to a checklist item',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        checklist_id: {
+          type: 'string',
+          description: 'UUID of the checklist'
+        },
+        item_id: {
+          type: 'string',
+          description: 'UUID of the item to add the sample to'
+        },
+        description: {
+          type: 'string',
+          description: 'Description of the sample (e.g. "2025年1月版 住民票サンプル")'
+        },
+        file_path: {
+          type: 'string',
+          description: 'Optional file path of the sample document'
+        },
+        required_fields: {
+          type: 'array',
+          description: 'List of fields that must be filled in the sample document',
+          items: {
+            type: 'object',
+            properties: {
+              field_name: { type: 'string', description: 'Name of the field' },
+              required: { type: 'boolean', description: 'Whether this field is required (default: true)' },
+              description: { type: 'string', description: 'Optional notes for the field' }
+            },
+            required: ['field_name']
+          }
+        }
+      },
+      required: ['checklist_id', 'item_id', 'description']
+    }
+  },
+  {
+    name: 'get_samples',
+    description: 'Returns all samples attached to a checklist item',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        checklist_id: {
+          type: 'string',
+          description: 'UUID of the checklist'
+        },
+        item_id: {
+          type: 'string',
+          description: 'UUID of the item'
+        }
+      },
+      required: ['checklist_id', 'item_id']
+    }
+  },
+  {
+    name: 'add_sample_field',
+    description: 'Adds a required field entry to an existing sample',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        checklist_id: {
+          type: 'string',
+          description: 'UUID of the checklist'
+        },
+        item_id: {
+          type: 'string',
+          description: 'UUID of the item'
+        },
+        sample_id: {
+          type: 'string',
+          description: 'UUID of the sample to add the field to'
+        },
+        field_name: {
+          type: 'string',
+          description: 'Name of the field (e.g. "申請者氏名")'
+        },
+        required: {
+          type: 'boolean',
+          description: 'Whether this field is required (default: true)'
+        },
+        description: {
+          type: 'string',
+          description: 'Optional description or notes for the field'
+        }
+      },
+      required: ['checklist_id', 'item_id', 'sample_id', 'field_name']
+    }
+  },
+  {
+    name: 'delete_sample',
+    description: 'Deletes a sample from a checklist item',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        checklist_id: {
+          type: 'string',
+          description: 'UUID of the checklist'
+        },
+        item_id: {
+          type: 'string',
+          description: 'UUID of the item'
+        },
+        sample_id: {
+          type: 'string',
+          description: 'UUID of the sample to delete'
+        }
+      },
+      required: ['checklist_id', 'item_id', 'sample_id']
+    }
   }
 ];
 
@@ -288,6 +401,14 @@ export class ToolHandler {
           return this.getValidationRules(parameters);
         case 'delete_validation_rule':
           return this.deleteValidationRule(parameters);
+        case 'add_sample':
+          return this.addSample(parameters);
+        case 'get_samples':
+          return this.getSamples(parameters);
+        case 'add_sample_field':
+          return this.addSampleField(parameters);
+        case 'delete_sample':
+          return this.deleteSample(parameters);
         default:
           throw new MCPError({
             ...MCP_ERRORS.VALIDATION_ERROR,
@@ -424,6 +545,77 @@ export class ToolHandler {
       params.rule_id
     );
     logger.info('Validation rule deleted', { ruleId: params.rule_id });
+    return makeResult(result);
+  }
+
+  private addSample(params: {
+    checklist_id: string;
+    item_id: string;
+    description: string;
+    file_path?: string;
+    required_fields?: Array<{ field_name: string; required?: boolean; description?: string }>;
+  }): ToolResult {
+    const mappedFields = (params.required_fields ?? []).map(f => {
+      const mapped: { fieldName: string; required?: boolean; description?: string } = {
+        fieldName: f.field_name
+      };
+      if (f.required !== undefined) mapped.required = f.required;
+      if (f.description !== undefined) mapped.description = f.description;
+      return mapped;
+    });
+    const sample = this.checklistService.addSample(
+      params.checklist_id,
+      params.item_id,
+      params.description,
+      params.file_path,
+      mappedFields
+    );
+    logger.info('Sample added', { sampleId: sample.id, itemId: params.item_id });
+    return makeResult(sample);
+  }
+
+  private getSamples(params: {
+    checklist_id: string;
+    item_id: string;
+  }): ToolResult {
+    const samples = this.checklistService.getSamples(
+      params.checklist_id,
+      params.item_id
+    );
+    return makeResult(samples);
+  }
+
+  private addSampleField(params: {
+    checklist_id: string;
+    item_id: string;
+    sample_id: string;
+    field_name: string;
+    required?: boolean;
+    description?: string;
+  }): ToolResult {
+    const field = this.checklistService.addSampleField(
+      params.checklist_id,
+      params.item_id,
+      params.sample_id,
+      params.field_name,
+      params.required ?? true,
+      params.description
+    );
+    logger.info('Sample field added', { fieldId: field.id, sampleId: params.sample_id });
+    return makeResult(field);
+  }
+
+  private deleteSample(params: {
+    checklist_id: string;
+    item_id: string;
+    sample_id: string;
+  }): ToolResult {
+    const result = this.checklistService.deleteSample(
+      params.checklist_id,
+      params.item_id,
+      params.sample_id
+    );
+    logger.info('Sample deleted', { sampleId: params.sample_id });
     return makeResult(result);
   }
 }

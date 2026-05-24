@@ -5,7 +5,9 @@ import {
   ValidationRule,
   ValidationResult,
   ValidationType,
-  ValidationOutcome
+  ValidationOutcome,
+  ItemSample,
+  SampleField
 } from '../types/checklist';
 import { MCPError } from '../utils/validator';
 import { MCP_ERRORS } from '../core/constants';
@@ -69,6 +71,7 @@ export class ChecklistService {
       updatedAt: now,
       validationRules: [],
       latestValidationResults: [],
+      samples: [],
       ...(description !== undefined ? { description } : {})
     };
 
@@ -312,6 +315,179 @@ export class ChecklistService {
       rules: item.validationRules,
       results: item.latestValidationResults
     };
+  }
+
+  // ---------------------------------------------------------------------------
+  // Sample management
+  // ---------------------------------------------------------------------------
+
+  addSample(
+    checklistId: string,
+    itemId: string,
+    description: string,
+    filePath?: string,
+    requiredFields?: Array<{ fieldName: string; required?: boolean; description?: string }>
+  ): ItemSample {
+    const checklist = this.checklists.get(checklistId);
+    if (!checklist) {
+      throw new MCPError({
+        ...MCP_ERRORS.VALIDATION_ERROR,
+        data: `Checklist with ID '${checklistId}' not found`
+      });
+    }
+
+    const item = checklist.items.find(i => i.id === itemId);
+    if (!item) {
+      throw new MCPError({
+        ...MCP_ERRORS.VALIDATION_ERROR,
+        data: `Item with ID '${itemId}' not found in checklist '${checklistId}'`
+      });
+    }
+
+    if (!description || description.trim() === '') {
+      throw new MCPError({
+        ...MCP_ERRORS.VALIDATION_ERROR,
+        data: `description must not be empty`
+      });
+    }
+
+    const fields: SampleField[] = (requiredFields ?? []).map(f => ({
+      id: uuidv4(),
+      fieldName: f.fieldName,
+      required: f.required !== undefined ? f.required : true,
+      ...(f.description !== undefined ? { description: f.description } : {})
+    }));
+
+    const now = new Date();
+    const sample: ItemSample = {
+      id: uuidv4(),
+      itemId,
+      description,
+      requiredFields: fields,
+      createdAt: now,
+      updatedAt: now,
+      ...(filePath !== undefined ? { filePath } : {})
+    };
+
+    item.samples.push(sample);
+    item.updatedAt = now;
+    checklist.updatedAt = now;
+
+    return sample;
+  }
+
+  getSamples(checklistId: string, itemId: string): ItemSample[] {
+    const checklist = this.checklists.get(checklistId);
+    if (!checklist) {
+      throw new MCPError({
+        ...MCP_ERRORS.VALIDATION_ERROR,
+        data: `Checklist with ID '${checklistId}' not found`
+      });
+    }
+
+    const item = checklist.items.find(i => i.id === itemId);
+    if (!item) {
+      throw new MCPError({
+        ...MCP_ERRORS.VALIDATION_ERROR,
+        data: `Item with ID '${itemId}' not found in checklist '${checklistId}'`
+      });
+    }
+
+    return item.samples;
+  }
+
+  addSampleField(
+    checklistId: string,
+    itemId: string,
+    sampleId: string,
+    fieldName: string,
+    required: boolean = true,
+    description?: string
+  ): SampleField {
+    const checklist = this.checklists.get(checklistId);
+    if (!checklist) {
+      throw new MCPError({
+        ...MCP_ERRORS.VALIDATION_ERROR,
+        data: `Checklist with ID '${checklistId}' not found`
+      });
+    }
+
+    const item = checklist.items.find(i => i.id === itemId);
+    if (!item) {
+      throw new MCPError({
+        ...MCP_ERRORS.VALIDATION_ERROR,
+        data: `Item with ID '${itemId}' not found in checklist '${checklistId}'`
+      });
+    }
+
+    const sample = item.samples.find(s => s.id === sampleId);
+    if (!sample) {
+      throw new MCPError({
+        ...MCP_ERRORS.VALIDATION_ERROR,
+        data: `Sample with ID '${sampleId}' not found in item '${itemId}'`
+      });
+    }
+
+    if (!fieldName || fieldName.trim() === '') {
+      throw new MCPError({
+        ...MCP_ERRORS.VALIDATION_ERROR,
+        data: `fieldName must not be empty`
+      });
+    }
+
+    const field: SampleField = {
+      id: uuidv4(),
+      fieldName,
+      required,
+      ...(description !== undefined ? { description } : {})
+    };
+
+    sample.requiredFields.push(field);
+
+    const now = new Date();
+    sample.updatedAt = now;
+    item.updatedAt = now;
+    checklist.updatedAt = now;
+
+    return field;
+  }
+
+  deleteSample(
+    checklistId: string,
+    itemId: string,
+    sampleId: string
+  ): { deleted: boolean; sampleId: string } {
+    const checklist = this.checklists.get(checklistId);
+    if (!checklist) {
+      throw new MCPError({
+        ...MCP_ERRORS.VALIDATION_ERROR,
+        data: `Checklist with ID '${checklistId}' not found`
+      });
+    }
+
+    const item = checklist.items.find(i => i.id === itemId);
+    if (!item) {
+      throw new MCPError({
+        ...MCP_ERRORS.VALIDATION_ERROR,
+        data: `Item with ID '${itemId}' not found in checklist '${checklistId}'`
+      });
+    }
+
+    const sampleIndex = item.samples.findIndex(s => s.id === sampleId);
+    if (sampleIndex < 0) {
+      throw new MCPError({
+        ...MCP_ERRORS.VALIDATION_ERROR,
+        data: `Sample with ID '${sampleId}' not found in item '${itemId}'`
+      });
+    }
+
+    item.samples.splice(sampleIndex, 1);
+
+    const now = new Date();
+    item.updatedAt = now;
+    checklist.updatedAt = now;
+
+    return { deleted: true, sampleId };
   }
 
   deleteValidationRule(

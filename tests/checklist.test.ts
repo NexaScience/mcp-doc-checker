@@ -449,6 +449,224 @@ describe('deleteValidationRule', () => {
 });
 
 // ---------------------------------------------------------------------------
+// addSample
+// ---------------------------------------------------------------------------
+describe('addSample', () => {
+  let service: ChecklistService;
+
+  beforeEach(() => {
+    service = new ChecklistService();
+  });
+
+  it('サンプルをアイテムに追加できる', () => {
+    const cl = service.createChecklist('HR');
+    const item = service.addItem(cl.id, '住民票');
+    const sample = service.addSample(cl.id, item.id, '2025年1月版 住民票サンプル');
+    expect(sample.id).toBeTruthy();
+    expect(sample.itemId).toBe(item.id);
+    expect(sample.description).toBe('2025年1月版 住民票サンプル');
+    expect(sample.requiredFields).toHaveLength(0);
+    expect(sample.createdAt).toBeInstanceOf(Date);
+  });
+
+  it('required_fields を含むサンプルを追加できる', () => {
+    const cl = service.createChecklist('HR');
+    const item = service.addItem(cl.id, '住民票');
+    const sample = service.addSample(cl.id, item.id, 'サンプル', undefined, [
+      { fieldName: '申請者氏名', required: true, description: '正式な氏名を記入' },
+      { fieldName: '住所' }
+    ]);
+    expect(sample.requiredFields).toHaveLength(2);
+    expect(sample.requiredFields[0].fieldName).toBe('申請者氏名');
+    expect(sample.requiredFields[0].required).toBe(true);
+    expect(sample.requiredFields[0].description).toBe('正式な氏名を記入');
+    expect(sample.requiredFields[0].id).toBeTruthy();
+    expect(sample.requiredFields[1].fieldName).toBe('住所');
+    expect(sample.requiredFields[1].required).toBe(true); // default
+  });
+
+  it('存在しない checklistId で VALIDATION_ERROR', () => {
+    expect(() => service.addSample('nonexistent', 'any-item', 'desc')).toThrow(MCPError);
+    try {
+      service.addSample('nonexistent', 'any-item', 'desc');
+    } catch (e) {
+      expect((e as MCPError).code).toBe(-32006);
+    }
+  });
+
+  it('存在しない itemId で VALIDATION_ERROR', () => {
+    const cl = service.createChecklist('HR');
+    expect(() => service.addSample(cl.id, 'nonexistent-item', 'desc')).toThrow(MCPError);
+    try {
+      service.addSample(cl.id, 'nonexistent-item', 'desc');
+    } catch (e) {
+      expect((e as MCPError).code).toBe(-32006);
+    }
+  });
+
+  it('description が空で VALIDATION_ERROR', () => {
+    const cl = service.createChecklist('HR');
+    const item = service.addItem(cl.id, '住民票');
+    expect(() => service.addSample(cl.id, item.id, '')).toThrow(MCPError);
+    try {
+      service.addSample(cl.id, item.id, '');
+    } catch (e) {
+      expect((e as MCPError).code).toBe(-32006);
+    }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// getSamples
+// ---------------------------------------------------------------------------
+describe('getSamples', () => {
+  let service: ChecklistService;
+
+  beforeEach(() => {
+    service = new ChecklistService();
+  });
+
+  it('サンプルがない場合は空配列を返す', () => {
+    const cl = service.createChecklist('HR');
+    const item = service.addItem(cl.id, '住民票');
+    const samples = service.getSamples(cl.id, item.id);
+    expect(samples).toHaveLength(0);
+  });
+
+  it('追加したサンプルが取得できる', () => {
+    const cl = service.createChecklist('HR');
+    const item = service.addItem(cl.id, '住民票');
+    service.addSample(cl.id, item.id, 'サンプルA');
+    service.addSample(cl.id, item.id, 'サンプルB');
+    const samples = service.getSamples(cl.id, item.id);
+    expect(samples).toHaveLength(2);
+    expect(samples[0].description).toBe('サンプルA');
+    expect(samples[1].description).toBe('サンプルB');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// addSampleField
+// ---------------------------------------------------------------------------
+describe('addSampleField', () => {
+  let service: ChecklistService;
+
+  beforeEach(() => {
+    service = new ChecklistService();
+  });
+
+  it('既存サンプルにフィールドを追加できる', () => {
+    const cl = service.createChecklist('HR');
+    const item = service.addItem(cl.id, '住民票');
+    const sample = service.addSample(cl.id, item.id, 'サンプル');
+    const field = service.addSampleField(cl.id, item.id, sample.id, '申請者氏名');
+    expect(field.id).toBeTruthy();
+    expect(field.fieldName).toBe('申請者氏名');
+    expect(field.required).toBe(true); // default
+    const samples = service.getSamples(cl.id, item.id);
+    expect(samples[0].requiredFields).toHaveLength(1);
+  });
+
+  it('required=false のフィールドを追加できる', () => {
+    const cl = service.createChecklist('HR');
+    const item = service.addItem(cl.id, '住民票');
+    const sample = service.addSample(cl.id, item.id, 'サンプル');
+    const field = service.addSampleField(cl.id, item.id, sample.id, '備考', false, 'あれば記入');
+    expect(field.required).toBe(false);
+    expect(field.description).toBe('あれば記入');
+  });
+
+  it('存在しない sampleId で VALIDATION_ERROR', () => {
+    const cl = service.createChecklist('HR');
+    const item = service.addItem(cl.id, '住民票');
+    expect(() =>
+      service.addSampleField(cl.id, item.id, 'nonexistent-sample', 'フィールド名')
+    ).toThrow(MCPError);
+    try {
+      service.addSampleField(cl.id, item.id, 'nonexistent-sample', 'フィールド名');
+    } catch (e) {
+      expect((e as MCPError).code).toBe(-32006);
+    }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// deleteSample
+// ---------------------------------------------------------------------------
+describe('deleteSample', () => {
+  let service: ChecklistService;
+
+  beforeEach(() => {
+    service = new ChecklistService();
+  });
+
+  it('サンプルを削除できる', () => {
+    const cl = service.createChecklist('HR');
+    const item = service.addItem(cl.id, '住民票');
+    const sample = service.addSample(cl.id, item.id, 'サンプル');
+    const result = service.deleteSample(cl.id, item.id, sample.id);
+    expect(result.deleted).toBe(true);
+    expect(result.sampleId).toBe(sample.id);
+  });
+
+  it('削除後 getSamples で取得できない', () => {
+    const cl = service.createChecklist('HR');
+    const item = service.addItem(cl.id, '住民票');
+    const sample = service.addSample(cl.id, item.id, 'サンプル');
+    service.deleteSample(cl.id, item.id, sample.id);
+    const samples = service.getSamples(cl.id, item.id);
+    expect(samples).toHaveLength(0);
+  });
+
+  it('存在しない sampleId で VALIDATION_ERROR', () => {
+    const cl = service.createChecklist('HR');
+    const item = service.addItem(cl.id, '住民票');
+    expect(() =>
+      service.deleteSample(cl.id, item.id, 'nonexistent-sample')
+    ).toThrow(MCPError);
+    try {
+      service.deleteSample(cl.id, item.id, 'nonexistent-sample');
+    } catch (e) {
+      expect((e as MCPError).code).toBe(-32006);
+    }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Full sample-based validation flow
+// ---------------------------------------------------------------------------
+describe('Full sample-based validation flow', () => {
+  it('create_checklist → add_item → add_sample(requiredFields) → add_validation_rule → record(pass) → submit_item → status=submitted', () => {
+    const service = new ChecklistService();
+    const cl = service.createChecklist('住民票提出フロー');
+    const item = service.addItem(cl.id, '住民票');
+
+    // Add a sample with required fields
+    const sample = service.addSample(cl.id, item.id, '2025年1月版サンプル', undefined, [
+      { fieldName: '申請者氏名' },
+      { fieldName: '住所' }
+    ]);
+    expect(sample.requiredFields).toHaveLength(2);
+
+    // Add a custom validation rule referencing the sample
+    const rule = service.addValidationRule(
+      cl.id,
+      item.id,
+      'custom',
+      'サンプルの全フィールドが記入されているか確認'
+    );
+    expect(rule.id).toBeTruthy();
+
+    // Record a passing result
+    service.recordValidationResult(cl.id, item.id, rule.id, 'pass', '全フィールド記入済み');
+
+    // Submit should succeed
+    const submitted = service.submitItem(cl.id, item.id);
+    expect(submitted.status).toBe('submitted');
+  });
+});
+
+// ---------------------------------------------------------------------------
 // Full validation flow
 // ---------------------------------------------------------------------------
 describe('Full validation flow', () => {

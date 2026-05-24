@@ -27,6 +27,23 @@ export interface ValidationResult {
   createdAt: Date;
 }
 
+export interface SampleField {
+  id: string;          // UUID v4
+  fieldName: string;   // 例: "申請者氏名", "住所"
+  required: boolean;   // この項目は必須入力か（デフォルト: true）
+  description?: string; // 入力内容の説明・注意事項（例: "正式な氏名を記入"）
+}
+
+export interface ItemSample {
+  id: string;              // UUID v4
+  itemId: string;
+  description: string;     // サンプルの説明（例: "2025年1月版 住民票サンプル"）
+  filePath?: string;       // サンプルファイルのパス（任意）
+  requiredFields: SampleField[];  // 入力が必要な項目一覧
+  createdAt: Date;
+  updatedAt: Date;
+}
+
 export interface ChecklistItem {
   id: string;
   checklistId: string;
@@ -40,6 +57,7 @@ export interface ChecklistItem {
   updatedAt: Date;
   validationRules: ValidationRule[];           // Default: []
   latestValidationResults: ValidationResult[]; // Default: []
+  samples: ItemSample[];                       // Default: []
 }
 
 export interface Checklist {
