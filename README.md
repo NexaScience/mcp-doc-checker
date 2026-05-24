@@ -1,23 +1,26 @@
 # MCP: Document Checker
 
-This server provides todo list functionality with tools and resources for task management.
+This server provides document submission checklist management with tools for tracking required documents across any workflow (onboarding, contracts, applications, etc.).
 
 ## Usage
 
 | Feature | Example |
 |---|---|
-| Create Tasks | "remind me to buy groceries" |
-| Manage Tasks | "Mark task as completed" |
-| Filter Tasks | "Show me all my incomplete tasks" |
-| Task Analytics | "Analyze my task completion patterns" |
+| Create Checklist | "Create a checklist for new employee onboarding" |
+| Add Item | "Add 'My Number card copy' as a required document" |
+| Submit Item | "Mark the employment contract as submitted" |
+| Get Missing | "Show me which required documents are still missing" |
+| Get Checklist | "Show the full status of the onboarding checklist" |
+| List Checklists | "List all active checklists" |
+| Delete Checklist | "Delete the onboarding checklist for April intake" |
 
 ## Installation
 
 1. Clone this repository:
 
 ```bash
-git clone https://github.com/NexaScience/MCP-todo
-cd MCP-todo
+git clone https://github.com/NexaScience/mcp-doc-checker
+cd mcp-doc-checker
 ```
 
 2. Install dependencies:
@@ -32,7 +35,7 @@ npm install
 npm run build
 ```
 
-> Run this before adding to Claude Desktop.
+> Run this before adding to your MCP host.
 
 ## Setup
 
@@ -41,9 +44,9 @@ Add to your MCP host's config file ([see host-specific instructions](https://mod
 ```json
 {
   "mcpServers": {
-    "todo": {
+    "doc-checker": {
       "command": "node",
-      "args": ["/absolute/path/to/MCP-todo/dist/server.js"]
+      "args": ["/absolute/path/to/mcp-doc-checker/dist/server.js"]
     }
   }
 }
@@ -60,15 +63,17 @@ src/
 │   ├── constants.ts        # Constants
 │   └── message-handler.ts  # MCP message handling
 ├── handlers/
-│   ├── tool-handler.ts     # Tool handlers
-│   └── resource-handler.ts # Resource handlers
+│   └── tool-handler.ts     # Tool handlers
 ├── services/
-│   └── task-service.ts     # Business logic
+│   └── checklist-service.ts  # Business logic
 ├── types/
-│   └── mcp.ts              # TypeScript types
+│   ├── mcp.ts              # MCP base types
+│   └── checklist.ts        # Checklist / ChecklistItem types
 └── utils/
     ├── logger.ts           # Logging
     └── validator.ts        # Validation
+tests/
+└── checklist.test.ts       # Unit & integration tests
 ```
 
 ## Development
@@ -76,3 +81,4 @@ src/
 - `npm run dev` - Run server in development mode
 - `npm run build` - Build the TypeScript code
 - `npm run watch` - Build and watch for changes
+- `npm test` - Run tests
