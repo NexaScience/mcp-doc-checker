@@ -27,7 +27,9 @@
   "author": "NexaScience",
   "license": "MIT",
   "dependencies": {
-    "uuid": "^9.0.0"
+    "mammoth": "^1.12.0",
+    "uuid": "^9.0.0",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "@types/jest": "^29.5.12",
@@ -42,8 +44,12 @@
   "jest": {
     "preset": "ts-jest",
     "testEnvironment": "node",
-    "roots": ["<rootDir>/tests"],
-    "testMatch": ["**/*.test.ts"]
+    "roots": [
+      "<rootDir>/tests"
+    ],
+    "testMatch": [
+      "**/*.test.ts"
+    ]
   },
   "engines": {
     "node": ">=14.0.0"

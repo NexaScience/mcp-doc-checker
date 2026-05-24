@@ -1,3 +1,17 @@
+// doc-parser モジュールをモック（ファイルI/Oを行わない）
+jest.mock('../src/utils/doc-parser', () => ({
+  validateFileExtension: jest.fn(),
+  validateFileExists: jest.fn(),
+  extractText: jest.fn(),
+  extractPlaceholders: jest.fn(),
+}));
+
+import { validateFileExtension, validateFileExists, extractText, extractPlaceholders } from '../src/utils/doc-parser';
+const mockValidateFileExtension = validateFileExtension as jest.Mock;
+const mockValidateFileExists = validateFileExists as jest.Mock;
+const mockExtractText = extractText as jest.Mock;
+const mockExtractPlaceholders = extractPlaceholders as jest.Mock;
+
 import { ChecklistService } from '../src/services/checklist-service';
 import { MCPError } from '../src/utils/validator';
 
@@ -458,10 +472,10 @@ describe('addSample', () => {
     service = new ChecklistService();
   });
 
-  it('サンプルをアイテムに追加できる', () => {
+  it('サンプルをアイテムに追加できる（filePath省略時はフィールドなし）', async () => {
     const cl = service.createChecklist('HR');
     const item = service.addItem(cl.id, '住民票');
-    const sample = service.addSample(cl.id, item.id, '2025年1月版 住民票サンプル');
+    const sample = await service.addSample(cl.id, item.id, '2025年1月版 住民票サンプル');
     expect(sample.id).toBeTruthy();
     expect(sample.itemId).toBe(item.id);
     expect(sample.description).toBe('2025年1月版 住民票サンプル');
@@ -469,50 +483,22 @@ describe('addSample', () => {
     expect(sample.createdAt).toBeInstanceOf(Date);
   });
 
-  it('required_fields を含むサンプルを追加できる', () => {
+  it('存在しない checklistId で VALIDATION_ERROR', async () => {
+    await expect(service.addSample('nonexistent', 'any-item', 'desc')).rejects.toThrow(MCPError);
+    await expect(service.addSample('nonexistent', 'any-item', 'desc')).rejects.toMatchObject({ code: -32006 });
+  });
+
+  it('存在しない itemId で VALIDATION_ERROR', async () => {
+    const cl = service.createChecklist('HR');
+    await expect(service.addSample(cl.id, 'nonexistent-item', 'desc')).rejects.toThrow(MCPError);
+    await expect(service.addSample(cl.id, 'nonexistent-item', 'desc')).rejects.toMatchObject({ code: -32006 });
+  });
+
+  it('description が空で VALIDATION_ERROR', async () => {
     const cl = service.createChecklist('HR');
     const item = service.addItem(cl.id, '住民票');
-    const sample = service.addSample(cl.id, item.id, 'サンプル', undefined, [
-      { fieldName: '申請者氏名', required: true, description: '正式な氏名を記入' },
-      { fieldName: '住所' }
-    ]);
-    expect(sample.requiredFields).toHaveLength(2);
-    expect(sample.requiredFields[0].fieldName).toBe('申請者氏名');
-    expect(sample.requiredFields[0].required).toBe(true);
-    expect(sample.requiredFields[0].description).toBe('正式な氏名を記入');
-    expect(sample.requiredFields[0].id).toBeTruthy();
-    expect(sample.requiredFields[1].fieldName).toBe('住所');
-    expect(sample.requiredFields[1].required).toBe(true); // default
-  });
-
-  it('存在しない checklistId で VALIDATION_ERROR', () => {
-    expect(() => service.addSample('nonexistent', 'any-item', 'desc')).toThrow(MCPError);
-    try {
-      service.addSample('nonexistent', 'any-item', 'desc');
-    } catch (e) {
-      expect((e as MCPError).code).toBe(-32006);
-    }
-  });
-
-  it('存在しない itemId で VALIDATION_ERROR', () => {
-    const cl = service.createChecklist('HR');
-    expect(() => service.addSample(cl.id, 'nonexistent-item', 'desc')).toThrow(MCPError);
-    try {
-      service.addSample(cl.id, 'nonexistent-item', 'desc');
-    } catch (e) {
-      expect((e as MCPError).code).toBe(-32006);
-    }
-  });
-
-  it('description が空で VALIDATION_ERROR', () => {
-    const cl = service.createChecklist('HR');
-    const item = service.addItem(cl.id, '住民票');
-    expect(() => service.addSample(cl.id, item.id, '')).toThrow(MCPError);
-    try {
-      service.addSample(cl.id, item.id, '');
-    } catch (e) {
-      expect((e as MCPError).code).toBe(-32006);
-    }
+    await expect(service.addSample(cl.id, item.id, '')).rejects.toThrow(MCPError);
+    await expect(service.addSample(cl.id, item.id, '')).rejects.toMatchObject({ code: -32006 });
   });
 });
 
@@ -533,11 +519,11 @@ describe('getSamples', () => {
     expect(samples).toHaveLength(0);
   });
 
-  it('追加したサンプルが取得できる', () => {
+  it('追加したサンプルが取得できる', async () => {
     const cl = service.createChecklist('HR');
     const item = service.addItem(cl.id, '住民票');
-    service.addSample(cl.id, item.id, 'サンプルA');
-    service.addSample(cl.id, item.id, 'サンプルB');
+    await service.addSample(cl.id, item.id, 'サンプルA');
+    await service.addSample(cl.id, item.id, 'サンプルB');
     const samples = service.getSamples(cl.id, item.id);
     expect(samples).toHaveLength(2);
     expect(samples[0].description).toBe('サンプルA');
@@ -555,10 +541,10 @@ describe('addSampleField', () => {
     service = new ChecklistService();
   });
 
-  it('既存サンプルにフィールドを追加できる', () => {
+  it('既存サンプルにフィールドを追加できる', async () => {
     const cl = service.createChecklist('HR');
     const item = service.addItem(cl.id, '住民票');
-    const sample = service.addSample(cl.id, item.id, 'サンプル');
+    const sample = await service.addSample(cl.id, item.id, 'サンプル');
     const field = service.addSampleField(cl.id, item.id, sample.id, '申請者氏名');
     expect(field.id).toBeTruthy();
     expect(field.fieldName).toBe('申請者氏名');
@@ -567,10 +553,10 @@ describe('addSampleField', () => {
     expect(samples[0].requiredFields).toHaveLength(1);
   });
 
-  it('required=false のフィールドを追加できる', () => {
+  it('required=false のフィールドを追加できる', async () => {
     const cl = service.createChecklist('HR');
     const item = service.addItem(cl.id, '住民票');
-    const sample = service.addSample(cl.id, item.id, 'サンプル');
+    const sample = await service.addSample(cl.id, item.id, 'サンプル');
     const field = service.addSampleField(cl.id, item.id, sample.id, '備考', false, 'あれば記入');
     expect(field.required).toBe(false);
     expect(field.description).toBe('あれば記入');
@@ -600,19 +586,19 @@ describe('deleteSample', () => {
     service = new ChecklistService();
   });
 
-  it('サンプルを削除できる', () => {
+  it('サンプルを削除できる', async () => {
     const cl = service.createChecklist('HR');
     const item = service.addItem(cl.id, '住民票');
-    const sample = service.addSample(cl.id, item.id, 'サンプル');
+    const sample = await service.addSample(cl.id, item.id, 'サンプル');
     const result = service.deleteSample(cl.id, item.id, sample.id);
     expect(result.deleted).toBe(true);
     expect(result.sampleId).toBe(sample.id);
   });
 
-  it('削除後 getSamples で取得できない', () => {
+  it('削除後 getSamples で取得できない', async () => {
     const cl = service.createChecklist('HR');
     const item = service.addItem(cl.id, '住民票');
-    const sample = service.addSample(cl.id, item.id, 'サンプル');
+    const sample = await service.addSample(cl.id, item.id, 'サンプル');
     service.deleteSample(cl.id, item.id, sample.id);
     const samples = service.getSamples(cl.id, item.id);
     expect(samples).toHaveLength(0);
@@ -636,17 +622,14 @@ describe('deleteSample', () => {
 // Full sample-based validation flow
 // ---------------------------------------------------------------------------
 describe('Full sample-based validation flow', () => {
-  it('create_checklist → add_item → add_sample(requiredFields) → add_validation_rule → record(pass) → submit_item → status=submitted', () => {
+  it('create_checklist → add_item → add_sample → add_validation_rule → record(pass) → submit_item → status=submitted', async () => {
     const service = new ChecklistService();
     const cl = service.createChecklist('住民票提出フロー');
     const item = service.addItem(cl.id, '住民票');
 
-    // Add a sample with required fields
-    const sample = service.addSample(cl.id, item.id, '2025年1月版サンプル', undefined, [
-      { fieldName: '申請者氏名' },
-      { fieldName: '住所' }
-    ]);
-    expect(sample.requiredFields).toHaveLength(2);
+    // Add a sample without a file (no placeholders to extract)
+    const sample = await service.addSample(cl.id, item.id, '2025年1月版サンプル');
+    expect(sample.requiredFields).toHaveLength(0);
 
     // Add a custom validation rule referencing the sample
     const rule = service.addValidationRule(
@@ -704,5 +687,249 @@ describe('Full validation flow', () => {
     service.recordValidationResult(cl.id, item.id, rule.id, 'pass', '正しい書類に差し替えた');
     const submitted = service.submitItem(cl.id, item.id);
     expect(submitted.status).toBe('submitted');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// addSample with file parsing
+// ---------------------------------------------------------------------------
+describe('addSample with file parsing', () => {
+  let service: ChecklistService;
+
+  beforeEach(() => {
+    service = new ChecklistService();
+    // デフォルトでモックをリセットし、正常動作を設定
+    mockValidateFileExtension.mockReset();
+    mockValidateFileExists.mockReset();
+    mockExtractText.mockReset();
+    mockExtractPlaceholders.mockReset();
+    // デフォルト: バリデーション通過、空テキスト、空プレースホルダー
+    mockValidateFileExtension.mockImplementation(() => { /* no-op = valid */ });
+    mockValidateFileExists.mockImplementation(() => { /* no-op = exists */ });
+    mockExtractText.mockResolvedValue('');
+    mockExtractPlaceholders.mockReturnValue([]);
+  });
+
+  it('.docx ファイルを指定するとプレースホルダーが自動抽出される', async () => {
+    mockExtractText.mockResolvedValue('{{氏名}} {{住所}}');
+    mockExtractPlaceholders.mockReturnValue(['氏名', '住所']);
+
+    const cl = service.createChecklist('HR');
+    const item = service.addItem(cl.id, '住民票');
+    const sample = await service.addSample(cl.id, item.id, 'サンプル', '/path/to/sample.docx');
+
+    expect(sample.requiredFields).toHaveLength(2);
+    expect(sample.requiredFields[0].fieldName).toBe('氏名');
+    expect(sample.requiredFields[0].required).toBe(true);
+    expect(sample.requiredFields[1].fieldName).toBe('住所');
+    expect(sample.requiredFields[1].required).toBe(true);
+    expect(sample.filePath).toBe('/path/to/sample.docx');
+  });
+
+  it('.xlsx ファイルを指定するとプレースホルダーが自動抽出される', async () => {
+    mockExtractText.mockResolvedValue('{{会社名}} {{担当者}}');
+    mockExtractPlaceholders.mockReturnValue(['会社名', '担当者']);
+
+    const cl = service.createChecklist('HR');
+    const item = service.addItem(cl.id, '申請書');
+    const sample = await service.addSample(cl.id, item.id, 'サンプル', '/path/to/sample.xlsx');
+
+    expect(sample.requiredFields).toHaveLength(2);
+    expect(sample.requiredFields[0].fieldName).toBe('会社名');
+    expect(sample.requiredFields[1].fieldName).toBe('担当者');
+    expect(sample.filePath).toBe('/path/to/sample.xlsx');
+  });
+
+  it('プレースホルダーが0件でもエラーにならない（空のrequiredFields）', async () => {
+    mockExtractText.mockResolvedValue('プレースホルダーなしのテキスト');
+    mockExtractPlaceholders.mockReturnValue([]);
+
+    const cl = service.createChecklist('HR');
+    const item = service.addItem(cl.id, '書類');
+    const sample = await service.addSample(cl.id, item.id, 'サンプル', '/path/to/sample.docx');
+
+    expect(sample.requiredFields).toHaveLength(0);
+  });
+
+  it('同一プレースホルダーが重複しても1件のみ登録される', async () => {
+    mockExtractText.mockResolvedValue('{{氏名}} {{住所}} {{氏名}}');
+    // extractPlaceholders 自体が重複除去を行うので、モックでも1件のみ返す
+    mockExtractPlaceholders.mockReturnValue(['氏名', '住所']);
+
+    const cl = service.createChecklist('HR');
+    const item = service.addItem(cl.id, '住民票');
+    const sample = await service.addSample(cl.id, item.id, 'サンプル', '/path/to/sample.docx');
+
+    expect(sample.requiredFields).toHaveLength(2);
+  });
+
+  it('拡張子エラー（.pdf等）でVALIDATION_ERROR', async () => {
+    mockValidateFileExtension.mockImplementation(() => {
+      throw new Error('Unsupported file type: .pdf. Only .docx and .xlsx are allowed.');
+    });
+
+    const cl = service.createChecklist('HR');
+    const item = service.addItem(cl.id, '書類');
+    await expect(
+      service.addSample(cl.id, item.id, 'サンプル', '/path/to/sample.pdf')
+    ).rejects.toMatchObject({ code: -32006 });
+  });
+
+  it('ファイル未存在でVALIDATION_ERROR', async () => {
+    mockValidateFileExists.mockImplementation(() => {
+      throw new Error('File not found: /path/to/missing.docx');
+    });
+
+    const cl = service.createChecklist('HR');
+    const item = service.addItem(cl.id, '書類');
+    await expect(
+      service.addSample(cl.id, item.id, 'サンプル', '/path/to/missing.docx')
+    ).rejects.toMatchObject({ code: -32006 });
+  });
+
+  it('file_pathを省略するとフィールド抽出なし（エラーにならない）', async () => {
+    const cl = service.createChecklist('HR');
+    const item = service.addItem(cl.id, '書類');
+    const sample = await service.addSample(cl.id, item.id, 'サンプル');
+
+    // filePath省略の場合はファイルI/Oが呼ばれない
+    expect(mockExtractText).not.toHaveBeenCalled();
+    expect(sample.requiredFields).toHaveLength(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// validateSubmission
+// ---------------------------------------------------------------------------
+describe('validateSubmission', () => {
+  let service: ChecklistService;
+
+  beforeEach(() => {
+    service = new ChecklistService();
+    mockValidateFileExtension.mockReset();
+    mockValidateFileExists.mockReset();
+    mockExtractText.mockReset();
+    mockExtractPlaceholders.mockReset();
+    mockValidateFileExtension.mockImplementation(() => { /* no-op = valid */ });
+    mockValidateFileExists.mockImplementation(() => { /* no-op = exists */ });
+    mockExtractText.mockResolvedValue('');
+    mockExtractPlaceholders.mockReturnValue([]);
+  });
+
+  async function setupSampleWithFields(fieldNames: string[]): Promise<{ checklistId: string; itemId: string; sampleId: string }> {
+    // サンプルをファイルから作成し、フィールドをモックで注入
+    mockExtractText.mockResolvedValueOnce(fieldNames.map(n => `{{${n}}}`).join(' '));
+    mockExtractPlaceholders.mockReturnValueOnce(fieldNames);
+
+    const cl = service.createChecklist('HR');
+    const item = service.addItem(cl.id, '住民票');
+    const sample = await service.addSample(cl.id, item.id, 'サンプル', '/path/to/sample.docx');
+    return { checklistId: cl.id, itemId: item.id, sampleId: sample.id };
+  }
+
+  it('全フィールドが埋まっている提出書類 → outcome: "pass"', async () => {
+    const { checklistId, itemId, sampleId } = await setupSampleWithFields(['氏名', '住所']);
+
+    // 提出書類にはプレースホルダーが残っていない（埋められた状態）
+    mockExtractText.mockResolvedValue('山田太郎 東京都千代田区1-1');
+    mockExtractPlaceholders.mockReturnValue([]);
+
+    const result = await service.validateSubmission(checklistId, itemId, sampleId, '/path/to/submission.docx');
+
+    expect(result.outcome).toBe('pass');
+    expect(result.sampleId).toBe(sampleId);
+    expect(result.submissionFilePath).toBe('/path/to/submission.docx');
+    expect(result.fields).toHaveLength(2);
+    expect(result.fields.every(f => f.status === 'filled')).toBe(true);
+    expect(result.validatedAt).toBeInstanceOf(Date);
+  });
+
+  it('1件以上のプレースホルダーが残っている → outcome: "fail"', async () => {
+    const { checklistId, itemId, sampleId } = await setupSampleWithFields(['氏名', '住所']);
+
+    // 提出書類に {{住所}} プレースホルダーがまだ残っている
+    mockExtractText.mockResolvedValue('山田太郎 {{住所}}');
+
+    const result = await service.validateSubmission(checklistId, itemId, sampleId, '/path/to/submission.docx');
+
+    expect(result.outcome).toBe('fail');
+    const addrField = result.fields.find(f => f.fieldName === '住所');
+    expect(addrField?.status).toBe('unfilled');
+    const nameField = result.fields.find(f => f.fieldName === '氏名');
+    expect(nameField?.status).toBe('filled');
+  });
+
+  it('required=false のフィールドが未入力でも他が全部埋まっていれば → pass', async () => {
+    // required=false のフィールドをサンプルに追加するにはaddSampleFieldを使う
+    mockExtractText.mockResolvedValueOnce('{{氏名}}');
+    mockExtractPlaceholders.mockReturnValueOnce(['氏名']);
+
+    const cl = service.createChecklist('HR');
+    const item = service.addItem(cl.id, '書類');
+    const sample = await service.addSample(cl.id, item.id, 'サンプル', '/path/to/sample.docx');
+    // required=false のフィールドを手動追加
+    service.addSampleField(cl.id, item.id, sample.id, '備考', false);
+
+    // 提出書類: 氏名は埋まっているが備考プレースホルダーが残っている
+    mockExtractText.mockResolvedValue('山田太郎 {{備考}}');
+
+    const result = await service.validateSubmission(cl.id, item.id, sample.id, '/path/to/submission.docx');
+
+    // required=true の「氏名」は filled → pass
+    expect(result.outcome).toBe('pass');
+    const bikoField = result.fields.find(f => f.fieldName === '備考');
+    expect(bikoField?.status).toBe('unfilled');
+    expect(bikoField?.required).toBe(false);
+  });
+
+  it('requiredFieldsが空のサンプル → outcome: "pass"', async () => {
+    // フィールドなしのサンプル
+    const cl = service.createChecklist('HR');
+    const item = service.addItem(cl.id, '書類');
+    const sample = await service.addSample(cl.id, item.id, 'サンプル');
+
+    mockExtractText.mockResolvedValue('何かテキスト');
+
+    const result = await service.validateSubmission(cl.id, item.id, sample.id, '/path/to/submission.docx');
+
+    expect(result.outcome).toBe('pass');
+    expect(result.fields).toHaveLength(0);
+  });
+
+  it('存在しないsampleIdでVALIDATION_ERROR', async () => {
+    const cl = service.createChecklist('HR');
+    const item = service.addItem(cl.id, '書類');
+
+    await expect(
+      service.validateSubmission(cl.id, item.id, 'nonexistent-sample', '/path/to/submission.docx')
+    ).rejects.toMatchObject({ code: -32006 });
+  });
+
+  it('提出書類が.pdf等の不正拡張子でVALIDATION_ERROR', async () => {
+    const cl = service.createChecklist('HR');
+    const item = service.addItem(cl.id, '書類');
+    const sample = await service.addSample(cl.id, item.id, 'サンプル');
+
+    mockValidateFileExtension.mockImplementation(() => {
+      throw new Error('Unsupported file type: .pdf. Only .docx and .xlsx are allowed.');
+    });
+
+    await expect(
+      service.validateSubmission(cl.id, item.id, sample.id, '/path/to/submission.pdf')
+    ).rejects.toMatchObject({ code: -32006 });
+  });
+
+  it('提出書類ファイルが未存在でVALIDATION_ERROR', async () => {
+    const cl = service.createChecklist('HR');
+    const item = service.addItem(cl.id, '書類');
+    const sample = await service.addSample(cl.id, item.id, 'サンプル');
+
+    mockValidateFileExists.mockImplementation(() => {
+      throw new Error('File not found: /path/to/missing.docx');
+    });
+
+    await expect(
+      service.validateSubmission(cl.id, item.id, sample.id, '/path/to/missing.docx')
+    ).rejects.toMatchObject({ code: -32006 });
   });
 });

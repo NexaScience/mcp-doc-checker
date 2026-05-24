@@ -255,34 +255,36 @@ export const TOOL_SCHEMAS: Record<string, ToolInputSchema> = {
       },
       file_path: {
         type: 'string',
-        description: 'Optional file path of the sample document'
-      },
-      required_fields: {
-        type: 'array',
-        description: 'List of fields that must be filled in the sample document',
-        items: {
-          type: 'object',
-          properties: {
-            field_name: {
-              type: 'string',
-              minLength: 1,
-              description: 'Name of the field (e.g. "申請者氏名")'
-            },
-            required: {
-              type: 'boolean',
-              description: 'Whether this field is required (default: true)'
-            },
-            description: {
-              type: 'string',
-              description: 'Optional description or notes for the field'
-            }
-          },
-          required: ['field_name'],
-          additionalProperties: false
-        }
+        minLength: 1,
+        description: 'File path of the sample document (.docx or .xlsx). Placeholders {{field_name}} will be auto-extracted.'
       }
     },
-    required: ['checklist_id', 'item_id', 'description'],
+    required: ['checklist_id', 'item_id', 'description', 'file_path'],
+    additionalProperties: false
+  },
+
+  validate_submission: {
+    type: 'object',
+    properties: {
+      checklist_id: {
+        type: 'string',
+        description: 'UUID of the checklist'
+      },
+      item_id: {
+        type: 'string',
+        description: 'UUID of the item'
+      },
+      sample_id: {
+        type: 'string',
+        description: 'UUID of the sample to compare against'
+      },
+      submission_file_path: {
+        type: 'string',
+        minLength: 1,
+        description: 'File path of the submitted document (.docx or .xlsx) to validate'
+      }
+    },
+    required: ['checklist_id', 'item_id', 'sample_id', 'submission_file_path'],
     additionalProperties: false
   },
 

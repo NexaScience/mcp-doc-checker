@@ -7,10 +7,18 @@ import {
   ValidationType,
   ValidationOutcome,
   ItemSample,
-  SampleField
+  SampleField,
+  SubmissionValidationResult,
+  SubmissionFieldResult
 } from '../types/checklist';
 import { MCPError } from '../utils/validator';
 import { MCP_ERRORS } from '../core/constants';
+import {
+  validateFileExtension,
+  validateFileExists,
+  extractText,
+  extractPlaceholders
+} from '../utils/doc-parser';
 
 const VALID_TYPES: ValidationType[] = [
   'file_uploaded',
@@ -321,13 +329,12 @@ export class ChecklistService {
   // Sample management
   // ---------------------------------------------------------------------------
 
-  addSample(
+  async addSample(
     checklistId: string,
     itemId: string,
     description: string,
-    filePath?: string,
-    requiredFields?: Array<{ fieldName: string; required?: boolean; description?: string }>
-  ): ItemSample {
+    filePath?: string
+  ): Promise<ItemSample> {
     const checklist = this.checklists.get(checklistId);
     if (!checklist) {
       throw new MCPError({
@@ -351,22 +358,44 @@ export class ChecklistService {
       });
     }
 
-    const fields: SampleField[] = (requiredFields ?? []).map(f => ({
-      id: uuidv4(),
-      fieldName: f.fieldName,
-      required: f.required !== undefined ? f.required : true,
-      ...(f.description !== undefined ? { description: f.description } : {})
-    }));
+    let fields: SampleField[] = [];
+    const resolvedFilePath = filePath ?? '';
+
+    if (filePath !== undefined) {
+      try {
+        validateFileExtension(filePath);
+      } catch (err) {
+        throw new MCPError({
+          ...MCP_ERRORS.VALIDATION_ERROR,
+          data: (err as Error).message
+        });
+      }
+      try {
+        validateFileExists(filePath);
+      } catch (err) {
+        throw new MCPError({
+          ...MCP_ERRORS.VALIDATION_ERROR,
+          data: (err as Error).message
+        });
+      }
+      const text = await extractText(filePath);
+      const placeholderNames = extractPlaceholders(text);
+      fields = placeholderNames.map(name => ({
+        id: uuidv4(),
+        fieldName: name,
+        required: true
+      }));
+    }
 
     const now = new Date();
     const sample: ItemSample = {
       id: uuidv4(),
       itemId,
       description,
+      filePath: resolvedFilePath,
       requiredFields: fields,
       createdAt: now,
-      updatedAt: now,
-      ...(filePath !== undefined ? { filePath } : {})
+      updatedAt: now
     };
 
     item.samples.push(sample);
@@ -374,6 +403,80 @@ export class ChecklistService {
     checklist.updatedAt = now;
 
     return sample;
+  }
+
+  async validateSubmission(
+    checklistId: string,
+    itemId: string,
+    sampleId: string,
+    submissionFilePath: string
+  ): Promise<SubmissionValidationResult> {
+    const checklist = this.checklists.get(checklistId);
+    if (!checklist) {
+      throw new MCPError({
+        ...MCP_ERRORS.VALIDATION_ERROR,
+        data: `Checklist with ID '${checklistId}' not found`
+      });
+    }
+
+    const item = checklist.items.find(i => i.id === itemId);
+    if (!item) {
+      throw new MCPError({
+        ...MCP_ERRORS.VALIDATION_ERROR,
+        data: `Item with ID '${itemId}' not found in checklist '${checklistId}'`
+      });
+    }
+
+    const sample = item.samples.find(s => s.id === sampleId);
+    if (!sample) {
+      throw new MCPError({
+        ...MCP_ERRORS.VALIDATION_ERROR,
+        data: `Sample with ID '${sampleId}' not found in item '${itemId}'`
+      });
+    }
+
+    try {
+      validateFileExtension(submissionFilePath);
+    } catch (err) {
+      throw new MCPError({
+        ...MCP_ERRORS.VALIDATION_ERROR,
+        data: (err as Error).message
+      });
+    }
+    try {
+      validateFileExists(submissionFilePath);
+    } catch (err) {
+      throw new MCPError({
+        ...MCP_ERRORS.VALIDATION_ERROR,
+        data: (err as Error).message
+      });
+    }
+
+    const submissionText = await extractText(submissionFilePath);
+
+    const fieldResults: SubmissionFieldResult[] = sample.requiredFields.map(field => {
+      // If the placeholder still appears in the submission, it is unfilled
+      const placeholderPattern = `{{${field.fieldName}}}`;
+      const isFilled = !submissionText.includes(placeholderPattern);
+      return {
+        fieldName: field.fieldName,
+        required: field.required,
+        status: isFilled ? 'filled' : 'unfilled'
+      };
+    });
+
+    // Fail if any required field is unfilled
+    const hasRequiredUnfilled = fieldResults.some(
+      f => f.required && f.status === 'unfilled'
+    );
+
+    return {
+      outcome: hasRequiredUnfilled ? 'fail' : 'pass',
+      sampleId,
+      submissionFilePath,
+      fields: fieldResults,
+      validatedAt: new Date()
+    };
   }
 
   getSamples(checklistId: string, itemId: string): ItemSample[] {

@@ -38,10 +38,24 @@ export interface ItemSample {
   id: string;              // UUID v4
   itemId: string;
   description: string;     // サンプルの説明（例: "2025年1月版 住民票サンプル"）
-  filePath?: string;       // サンプルファイルのパス（任意）
-  requiredFields: SampleField[];  // 入力が必要な項目一覧
+  filePath: string;        // サンプルファイルのパス（必須）
+  requiredFields: SampleField[];  // 入力が必要な項目一覧（ファイルから自動抽出）
   createdAt: Date;
   updatedAt: Date;
+}
+
+export interface SubmissionFieldResult {
+  fieldName: string;
+  required: boolean;
+  status: 'filled' | 'unfilled';
+}
+
+export interface SubmissionValidationResult {
+  outcome: 'pass' | 'fail';
+  sampleId: string;
+  submissionFilePath: string;
+  fields: SubmissionFieldResult[];
+  validatedAt: Date;
 }
 
 export interface ChecklistItem {

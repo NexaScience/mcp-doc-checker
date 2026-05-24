@@ -233,7 +233,7 @@ const toolDefinitions: MCPTool[] = [
   },
   {
     name: 'add_sample',
-    description: 'Adds a sample (template document) to a checklist item',
+    description: 'Adds a sample (template document) to a checklist item. Placeholders {{field_name}} in the file are auto-extracted as required fields.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -251,23 +251,36 @@ const toolDefinitions: MCPTool[] = [
         },
         file_path: {
           type: 'string',
-          description: 'Optional file path of the sample document'
-        },
-        required_fields: {
-          type: 'array',
-          description: 'List of fields that must be filled in the sample document',
-          items: {
-            type: 'object',
-            properties: {
-              field_name: { type: 'string', description: 'Name of the field' },
-              required: { type: 'boolean', description: 'Whether this field is required (default: true)' },
-              description: { type: 'string', description: 'Optional notes for the field' }
-            },
-            required: ['field_name']
-          }
+          description: 'File path of the sample document (.docx or .xlsx). Placeholders {{field_name}} will be auto-extracted.'
         }
       },
-      required: ['checklist_id', 'item_id', 'description']
+      required: ['checklist_id', 'item_id', 'description', 'file_path']
+    }
+  },
+  {
+    name: 'validate_submission',
+    description: 'Validates a submission document against a sample by checking that all required placeholders have been filled in',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        checklist_id: {
+          type: 'string',
+          description: 'UUID of the checklist'
+        },
+        item_id: {
+          type: 'string',
+          description: 'UUID of the item'
+        },
+        sample_id: {
+          type: 'string',
+          description: 'UUID of the sample to compare against'
+        },
+        submission_file_path: {
+          type: 'string',
+          description: 'File path of the submitted document (.docx or .xlsx) to validate'
+        }
+      },
+      required: ['checklist_id', 'item_id', 'sample_id', 'submission_file_path']
     }
   },
   {
@@ -402,13 +415,15 @@ export class ToolHandler {
         case 'delete_validation_rule':
           return this.deleteValidationRule(parameters);
         case 'add_sample':
-          return this.addSample(parameters);
+          return await this.addSample(parameters);
         case 'get_samples':
           return this.getSamples(parameters);
         case 'add_sample_field':
           return this.addSampleField(parameters);
         case 'delete_sample':
           return this.deleteSample(parameters);
+        case 'validate_submission':
+          return await this.validateSubmission(parameters);
         default:
           throw new MCPError({
             ...MCP_ERRORS.VALIDATION_ERROR,
@@ -548,30 +563,40 @@ export class ToolHandler {
     return makeResult(result);
   }
 
-  private addSample(params: {
+  private async addSample(params: {
     checklist_id: string;
     item_id: string;
     description: string;
-    file_path?: string;
-    required_fields?: Array<{ field_name: string; required?: boolean; description?: string }>;
-  }): ToolResult {
-    const mappedFields = (params.required_fields ?? []).map(f => {
-      const mapped: { fieldName: string; required?: boolean; description?: string } = {
-        fieldName: f.field_name
-      };
-      if (f.required !== undefined) mapped.required = f.required;
-      if (f.description !== undefined) mapped.description = f.description;
-      return mapped;
-    });
-    const sample = this.checklistService.addSample(
+    file_path: string;
+  }): Promise<ToolResult> {
+    const sample = await this.checklistService.addSample(
       params.checklist_id,
       params.item_id,
       params.description,
-      params.file_path,
-      mappedFields
+      params.file_path
     );
     logger.info('Sample added', { sampleId: sample.id, itemId: params.item_id });
     return makeResult(sample);
+  }
+
+  private async validateSubmission(params: {
+    checklist_id: string;
+    item_id: string;
+    sample_id: string;
+    submission_file_path: string;
+  }): Promise<ToolResult> {
+    const result = await this.checklistService.validateSubmission(
+      params.checklist_id,
+      params.item_id,
+      params.sample_id,
+      params.submission_file_path
+    );
+    logger.info('Submission validated', {
+      sampleId: params.sample_id,
+      outcome: result.outcome,
+      filePath: params.submission_file_path
+    });
+    return makeResult(result);
   }
 
   private getSamples(params: {
