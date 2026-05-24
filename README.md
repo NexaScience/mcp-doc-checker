@@ -1,6 +1,6 @@
 # MCP Todo Server
 
-A simple Model Context Protocol (MCP) server that demonstrates how to build MCP applications. This server provides todo list functionality with tools and resources for task management.
+This server provides todo list functionality with tools and resources for task management.
 
 ## Features
 
@@ -14,8 +14,8 @@ A simple Model Context Protocol (MCP) server that demonstrates how to build MCP 
 1. Clone this repository:
 
 ```bash
-git clone https://github.com/codethenpizza/mcp-server-todo-tutorial
-cd mcp-tutorial
+git clone https://github.com/NexaScience/MCP-todo
+cd MCP-todo
 ```
 
 2. Install dependencies:
@@ -48,7 +48,7 @@ To use this MCP server with Claude Desktop, you need to add it to your Claude De
   "mcpServers": {
     "todo": {
       "command": "node",
-      "args": ["/absolute/path/to/mcp-tutorial/dist/server.js"]
+      "args": ["/absolute/path/to/MCP-todo/dist/server.js"]
     }
   }
 }
@@ -65,7 +65,7 @@ To use this MCP server with Claude Desktop, you need to add it to your Claude De
   "mcpServers": {
     "todo": {
       "command": "node",
-      "args": ["C:\\absolute\\path\\to\\mcp-tutorial\\dist\\server.js"]
+      "args": ["C:\\absolute\\path\\to\\MCP-todo\\dist\\server.js"]
     }
   }
 }
@@ -73,7 +73,7 @@ To use this MCP server with Claude Desktop, you need to add it to your Claude De
 
 ### Important Notes
 
-- **Use absolute paths**: Replace `/absolute/path/to/mcp-tutorial` with the actual full path to your project directory
+- **Use absolute paths**: Replace `/absolute/path/to/MCP-todo` with the actual full path to your project directory
 - **Build first**: Ensure you've run `npm run build` before adding to Claude Desktop
 - **Restart Claude Desktop**: After making configuration changes, restart Claude Desktop for them to take effect
 
@@ -91,7 +91,3 @@ Once configured, you can ask Claude to help you manage your todos:
 - "Show me all my incomplete tasks"
 - "Mark task as completed"
 - "Analyze my task completion patterns"
-
-## Note
-
-This is a simplified showcase implementation. Some features are intentionally basic to demonstrate core MCP concepts.
