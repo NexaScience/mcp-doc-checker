@@ -1,6 +1,6 @@
-task_id: mcp-doc-checker-v1
+task_id: mcp-doc-checker-v2
 system_type: content_gen
-summary: "任意のシナリオで必要書類の提出状況を管理・チェックするMCPサーバーを実装する"
+summary: "書類アイテムにバリデーションルール管理と提出前チェック機能を追加する"
 
 goal: >
   入社手続き・契約締結・申請手続きなど汎用的なユースケースに対応できる
