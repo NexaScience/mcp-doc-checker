@@ -34,18 +34,9 @@ npm run build
 
 > Run this before adding to Claude Desktop.
 
-## Adding to Claude Desktop
+## Setup
 
-To use this MCP server with Claude Desktop, you need to add it to your Claude Desktop configuration ([read more here](https://modelcontextprotocol.io/quickstart/user)):
-
-### macOS/Linux
-
-1. Open your Claude Desktop config file:
-
-   - **macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
-   - **Linux**: `~/.config/Claude/claude_desktop_config.json`
-
-2. Add the following to your configuration, replacing the path with the actual full path to your project:
+Add to your MCP host's config file ([see host-specific instructions](https://modelcontextprotocol.io/quickstart/user)):
 
 ```json
 {
@@ -58,24 +49,7 @@ To use this MCP server with Claude Desktop, you need to add it to your Claude De
 }
 ```
 
-### Windows
-
-1. Open your Claude Desktop config file at: `%APPDATA%\Claude\claude_desktop_config.json`
-
-2. Add the following to your configuration, replacing the path with the actual full path to your project:
-
-```json
-{
-  "mcpServers": {
-    "todo": {
-      "command": "node",
-      "args": ["C:\\absolute\\path\\to\\MCP-todo\\dist\\server.js"]
-    }
-  }
-}
-```
-
-3. Restart Claude Desktop for the changes to take effect.
+Restart the host after saving.
 
 ## Project Structure
 
