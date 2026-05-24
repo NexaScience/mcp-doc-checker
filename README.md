@@ -1,4 +1,4 @@
-# MCP: Todo
+# MCP: Document Checker
 
 This server provides todo list functionality with tools and resources for task management.
 

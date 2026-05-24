@@ -1,10 +1,10 @@
 {
-  "name": "mcp-todo-server",
+  "name": "mcp-doc-checker",
   "version": "1.0.0",
-  "description": "MCP (Model Context Protocol) server showcasing how to build MCP applications",
+  "description": "MCP server for document submission checklist management",
   "main": "dist/server.js",
   "bin": {
-    "mcp-todo-server": "./dist/server.js"
+    "mcp-doc-checker": "./dist/server.js"
   },
   "scripts": {
     "build": "tsc",
