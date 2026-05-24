@@ -1,28 +1,22 @@
 import { MCP_PROTOCOL_VERSION, MCP_CAPABILITIES } from './core/constants';
 import { logger } from './utils/logger';
 import { MessageHandler } from './core/message-handler';
-import { TaskService } from './services/task-service';
+import { ChecklistService } from './services/checklist-service';
 import { ToolHandler } from './handlers/tool-handler';
-import { ResourceHandler } from './handlers/resource-handler';
 import { MCPServerInfo } from './types/mcp';
 
 const serverConfig: MCPServerInfo = {
-  name: 'mcp-todo-server',
+  name: 'mcp-doc-checker',
   version: '1.0.0',
   capabilities: MCP_CAPABILITIES,
   protocolVersion: MCP_PROTOCOL_VERSION
 };
 
 function initializeServer(): MessageHandler {
-  const taskService = new TaskService();
-  const toolHandler = new ToolHandler(taskService);
-  const resourceHandler = new ResourceHandler(taskService);
+  const checklistService = new ChecklistService();
+  const toolHandler = new ToolHandler(checklistService);
 
-  const messageHandler = new MessageHandler(
-    serverConfig,
-    toolHandler,
-    resourceHandler
-  );
+  const messageHandler = new MessageHandler(serverConfig, toolHandler);
 
   logger.info('MCP Server initialized', {
     server: serverConfig.name,
@@ -73,8 +67,8 @@ async function main(): Promise<void> {
     process.exit(1);
   });
 
-  process.on('unhandledRejection', (reason: any, promise: Promise<any>) => {
-    logger.error('Unhandled promise rejection', { reason, promise });
+  process.on('unhandledRejection', (reason: any, _promise: Promise<any>) => {
+    logger.error('Unhandled promise rejection', { reason });
     process.exit(1);
   });
 

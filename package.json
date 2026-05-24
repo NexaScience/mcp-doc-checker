@@ -11,36 +11,45 @@
     "start": "node dist/server.js",
     "dev": "ts-node src/server.ts",
     "watch": "tsc --watch",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "jest"
   },
   "keywords": [
     "mcp",
     "model-context-protocol",
-    "todo",
+    "document-checker",
+    "checklist",
     "server",
     "json-rpc",
     "ai",
     "assistant",
-    "tools",
-    "resources"
+    "tools"
   ],
-  "author": "MCP Tutorial Project",
+  "author": "NexaScience",
   "license": "MIT",
   "dependencies": {
     "uuid": "^9.0.0"
   },
   "devDependencies": {
+    "@types/jest": "^29.5.12",
     "@types/node": "^24.0.14",
     "@types/uuid": "^10.0.0",
+    "jest": "^29.7.0",
     "nodemon": "^3.0.1",
+    "ts-jest": "^29.2.5",
     "ts-node": "^10.9.2",
     "typescript": "^5.8.3"
+  },
+  "jest": {
+    "preset": "ts-jest",
+    "testEnvironment": "node",
+    "roots": ["<rootDir>/tests"],
+    "testMatch": ["**/*.test.ts"]
   },
   "engines": {
     "node": ">=14.0.0"
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/example/mcp-todo-server"
+    "url": "https://github.com/NexaScience/mcp-doc-checker"
   }
 }

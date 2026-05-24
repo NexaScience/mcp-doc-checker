@@ -25,100 +25,119 @@ export const MCP_CAPABILITIES: MCPCapabilities = {
     listChanged: true
   },
   resources: {
-    subscribe: true,
-    listChanged: true
+    subscribe: false,
+    listChanged: false
   },
   logging: {}
 };
 
 export const TOOL_SCHEMAS: Record<string, ToolInputSchema> = {
-  create_task: {
+  create_checklist: {
     type: 'object',
     properties: {
-      text: {
+      name: {
         type: 'string',
         minLength: 1,
-        maxLength: 500,
-        description: 'The text content of the task to create'
-      }
-    },
-    required: ['text'],
-    additionalProperties: false
-  },
-  
-  get_tasks: {
-    type: 'object',
-    properties: {
-      filter: {
-        type: 'string',
-        enum: ['all', 'pending', 'completed'],
-        description: 'Filter tasks by status'
-      }
-    },
-    required: ['filter'],
-    additionalProperties: false
-  },
-  
-  update_task: {
-    type: 'object',
-    properties: {
-      id: {
-        type: 'string',
-        pattern: '^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$',
-        description: 'The UUID of the task to update'
+        maxLength: 200,
+        description: 'Name of the checklist'
       },
-      completed: {
-        type: 'boolean',
-        description: 'Whether the task is completed'
-      }
-    },
-    required: ['id', 'completed'],
-    additionalProperties: false
-  },
-  
-  analyze_tasks: {
-    type: 'object',
-    properties: {
-      analysis_type: {
+      description: {
         type: 'string',
-        enum: ['summary', 'progress', 'suggestions'],
-        description: 'Type of analysis to perform'
+        maxLength: 1000,
+        description: 'Optional description of the checklist'
       }
     },
-    required: ['analysis_type'],
+    required: ['name'],
     additionalProperties: false
   },
-  
-  complete_task_by_text: {
+
+  add_item: {
     type: 'object',
     properties: {
-      text: {
+      checklist_id: {
+        type: 'string',
+        description: 'UUID of the checklist to add the item to'
+      },
+      name: {
         type: 'string',
         minLength: 1,
-        maxLength: 500,
-        description: 'The text content of the task to mark as completed (supports partial matching)'
+        maxLength: 200,
+        description: 'Name of the document item'
+      },
+      description: {
+        type: 'string',
+        maxLength: 1000,
+        description: 'Optional description of the document'
+      },
+      required: {
+        type: 'boolean',
+        description: 'Whether this document is required (default: true)'
       }
     },
-    required: ['text'],
+    required: ['checklist_id', 'name'],
     additionalProperties: false
   },
-  
-  delete_task: {
+
+  submit_item: {
     type: 'object',
     properties: {
-      id: {
+      checklist_id: {
         type: 'string',
-        pattern: '^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$',
-        description: 'The UUID of the task to delete'
+        description: 'UUID of the checklist'
+      },
+      item_id: {
+        type: 'string',
+        description: 'UUID of the item to mark as submitted'
+      },
+      note: {
+        type: 'string',
+        maxLength: 1000,
+        description: 'Optional note about the submission'
       }
     },
-    required: ['id'],
+    required: ['checklist_id', 'item_id'],
     additionalProperties: false
   },
-  
-  clear_all_tasks: {
+
+  get_checklist: {
+    type: 'object',
+    properties: {
+      checklist_id: {
+        type: 'string',
+        description: 'UUID of the checklist to retrieve'
+      }
+    },
+    required: ['checklist_id'],
+    additionalProperties: false
+  },
+
+  get_missing: {
+    type: 'object',
+    properties: {
+      checklist_id: {
+        type: 'string',
+        description: 'UUID of the checklist to check'
+      }
+    },
+    required: ['checklist_id'],
+    additionalProperties: false
+  },
+
+  list_checklists: {
     type: 'object',
     properties: {},
+    additionalProperties: false
+  },
+
+  delete_checklist: {
+    type: 'object',
+    properties: {
+      checklist_id: {
+        type: 'string',
+        description: 'UUID of the checklist to delete'
+      }
+    },
+    required: ['checklist_id'],
     additionalProperties: false
   }
 };

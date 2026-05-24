@@ -1,123 +1,148 @@
-import { v4 as uuidv4 } from 'uuid';
 import { MCPValidator, MCPError } from '../utils/validator';
 import { MCP_ERRORS } from '../core/constants';
 import { logger } from '../utils/logger';
-import { TaskService } from '../services/task-service';
-import { MCPTool, Task, ToolResult, FilterType, AnalysisType } from '../types/mcp';
+import { ChecklistService } from '../services/checklist-service';
+import { MCPTool, ToolResult } from '../types/mcp';
 
 const toolDefinitions: MCPTool[] = [
   {
-    name: 'create_task',
-    description: 'Creates a new task in the todo list with user consent',
+    name: 'create_checklist',
+    description: 'Creates a new document submission checklist',
     inputSchema: {
       type: 'object',
       properties: {
-        text: {
+        name: {
           type: 'string',
           minLength: 1,
-          maxLength: 500,
-          description: 'The text content of the task to create'
-        }
-      },
-      required: ['text']
-    }
-  },
-  {
-    name: 'get_tasks',
-    description: 'Retrieves the current list of tasks with filtering options',
-    inputSchema: {
-      type: 'object',
-      properties: {
-        filter: {
-          type: 'string',
-          description: 'Filter tasks by status',
-          enum: ['all', 'pending', 'completed']
-        }
-      },
-      required: ['filter']
-    }
-  },
-  {
-    name: 'update_task',
-    description: 'Updates a task completion status with validation using task ID',
-    inputSchema: {
-      type: 'object',
-      properties: {
-        id: {
-          type: 'string',
-          pattern: '^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$',
-          description: 'The UUID of the task to update'
+          maxLength: 200,
+          description: 'Name of the checklist'
         },
-        completed: {
-          type: 'boolean',
-          description: 'Whether the task is completed'
+        description: {
+          type: 'string',
+          maxLength: 1000,
+          description: 'Optional description of the checklist'
         }
       },
-      required: ['id', 'completed']
+      required: ['name']
     }
   },
   {
-    name: 'complete_task_by_text',
-    description: 'Marks a task as completed by searching for its text content (supports partial matching)',
+    name: 'add_item',
+    description: 'Adds a document item to an existing checklist',
     inputSchema: {
       type: 'object',
       properties: {
-        text: {
+        checklist_id: {
+          type: 'string',
+          description: 'UUID of the checklist to add the item to'
+        },
+        name: {
           type: 'string',
           minLength: 1,
-          maxLength: 500,
-          description: 'The text content of the task to mark as completed (supports partial matching)'
+          maxLength: 200,
+          description: 'Name of the document item'
+        },
+        description: {
+          type: 'string',
+          maxLength: 1000,
+          description: 'Optional description of the document'
+        },
+        required: {
+          type: 'boolean',
+          description: 'Whether this document is required (default: true)'
         }
       },
-      required: ['text']
+      required: ['checklist_id', 'name']
     }
   },
   {
-    name: 'analyze_tasks',
-    description: 'Analyzes the current todo list and provides insights',
+    name: 'submit_item',
+    description: 'Records a document as submitted (idempotent)',
     inputSchema: {
       type: 'object',
       properties: {
-        analysis_type: {
+        checklist_id: {
           type: 'string',
-          description: 'Type of analysis to perform',
-          enum: ['summary', 'progress', 'suggestions']
+          description: 'UUID of the checklist'
+        },
+        item_id: {
+          type: 'string',
+          description: 'UUID of the item to mark as submitted'
+        },
+        note: {
+          type: 'string',
+          maxLength: 1000,
+          description: 'Optional note about the submission'
         }
       },
-      required: ['analysis_type']
+      required: ['checklist_id', 'item_id']
     }
   },
   {
-    name: 'delete_task',
-    description: 'Deletes a task from the todo list',
+    name: 'get_checklist',
+    description: 'Retrieves a checklist with all its items and their statuses',
     inputSchema: {
       type: 'object',
       properties: {
-        id: {
+        checklist_id: {
           type: 'string',
-          pattern: '^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$',
-          description: 'The UUID of the task to delete'
+          description: 'UUID of the checklist to retrieve'
         }
       },
-      required: ['id']
+      required: ['checklist_id']
     }
   },
   {
-    name: 'clear_all_tasks',
-    description: 'Clears all tasks from the todo list',
+    name: 'get_missing',
+    description: 'Returns all required documents that have not yet been submitted',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        checklist_id: {
+          type: 'string',
+          description: 'UUID of the checklist to check'
+        }
+      },
+      required: ['checklist_id']
+    }
+  },
+  {
+    name: 'list_checklists',
+    description: 'Lists all checklists',
     inputSchema: {
       type: 'object',
       properties: {},
       additionalProperties: false
     }
+  },
+  {
+    name: 'delete_checklist',
+    description: 'Deletes a checklist and all its items',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        checklist_id: {
+          type: 'string',
+          description: 'UUID of the checklist to delete'
+        }
+      },
+      required: ['checklist_id']
+    }
   }
 ];
 
-export class ToolHandler {
-  private taskService: TaskService;
+function makeResult(data: unknown): ToolResult {
+  return {
+    content: [{ type: 'text', text: JSON.stringify(data) }],
+    isError: false
+  };
+}
 
-  constructor(taskService: TaskService) {
-    this.taskService = taskService;
+export class ToolHandler {
+  private checklistService: ChecklistService;
+
+  constructor(checklistService: ChecklistService) {
+    this.checklistService = checklistService;
   }
 
   static getToolDefinitions(): MCPTool[] {
@@ -132,27 +157,27 @@ export class ToolHandler {
       if (!tool) {
         throw new MCPError({
           ...MCP_ERRORS.VALIDATION_ERROR,
-          data: `Tool ${toolName} not found`
+          data: `Tool '${toolName}' not found`
         });
       }
 
-      MCPValidator.validateToolParameters(toolName, parameters);
+      MCPValidator.validateToolParameters(toolName, parameters ?? {});
 
       switch (toolName) {
-        case 'create_task':
-          return await this.createTask(parameters);
-        case 'get_tasks':
-          return await this.getTasks(parameters);
-        case 'update_task':
-          return await this.updateTask(parameters);
-        case 'complete_task_by_text':
-          return await this.completeTaskByText(parameters);
-        case 'analyze_tasks':
-          return await this.analyzeTasks(parameters);
-        case 'delete_task':
-          return await this.deleteTask(parameters);
-        case 'clear_all_tasks':
-          return await this.clearAllTasks(parameters);
+        case 'create_checklist':
+          return this.createChecklist(parameters);
+        case 'add_item':
+          return this.addItem(parameters);
+        case 'submit_item':
+          return this.submitItem(parameters);
+        case 'get_checklist':
+          return this.getChecklist(parameters);
+        case 'get_missing':
+          return this.getMissing(parameters);
+        case 'list_checklists':
+          return this.listChecklists();
+        case 'delete_checklist':
+          return this.deleteChecklist(parameters);
         default:
           throw new MCPError({
             ...MCP_ERRORS.VALIDATION_ERROR,
@@ -165,181 +190,69 @@ export class ToolHandler {
     }
   }
 
-  private async createTask(parameters: { text: string }): Promise<ToolResult> {
-    const newTask: Task = {
-      id: uuidv4(),
-      text: parameters.text.trim(),
-      completed: false,
-      createdAt: new Date(),
-      updatedAt: new Date()
-    };
-
-    this.taskService.addTask(newTask);
-
-    const result: ToolResult = {
-      content: [
-        {
-          type: 'text',
-          text: `Task created successfully: "${newTask.text}"`
-        }
-      ]
-    };
-
-    logger.info('Task created', { task: newTask });
-    return result;
-  }
-
-  private async getTasks(parameters: { filter: FilterType }): Promise<ToolResult> {
-    const filteredTasks = this.taskService.getTasksByFilter(parameters.filter);
-
-    const result: ToolResult = {
-      content: [
-        {
-          type: 'text',
-          text: `Retrieved ${filteredTasks.length} tasks (filter: ${parameters.filter})`
-        }
-      ]
-    };
-
-    return result;
-  }
-
-  private async updateTask(parameters: { id: string; completed: boolean }): Promise<ToolResult> {
-    const task = this.taskService.getTaskById(parameters.id);
-    if (!task) {
-      throw new MCPError({
-        ...MCP_ERRORS.VALIDATION_ERROR,
-        data: `Task with ID ${parameters.id} not found`
-      });
-    }
-
-    const updatedTask = this.taskService.updateTask(parameters.id, {
-      completed: parameters.completed,
-      updatedAt: new Date()
-    });
-
-    const result: ToolResult = {
-      content: [
-        {
-          type: 'text',
-          text: `Task "${updatedTask!.text}" ${parameters.completed ? 'completed' : 'marked as pending'}`
-        }
-      ]
-    };
-
-    logger.info('Task updated', { task: updatedTask });
-    return result;
-  }
-
-  private async completeTaskByText(parameters: { text: string }): Promise<ToolResult> {
-    const searchText = parameters.text.toLowerCase().trim();
-    const allTasks = this.taskService.getAllTasks();
-    
-    // Find tasks that match the search text (case-insensitive partial matching)
-    const matchingTasks = allTasks.filter(task => 
-      task.text.toLowerCase().includes(searchText) && !task.completed
+  private createChecklist(params: { name: string; description?: string }): ToolResult {
+    const checklist = this.checklistService.createChecklist(
+      params.name,
+      params.description
     );
-
-    if (matchingTasks.length === 0) {
-      throw new MCPError({
-        ...MCP_ERRORS.VALIDATION_ERROR,
-        data: `No pending tasks found containing "${parameters.text}"`
-      });
-    }
-
-    if (matchingTasks.length > 1) {
-      const taskList = matchingTasks.map(task => `- ${task.text}`).join('\n');
-      throw new MCPError({
-        ...MCP_ERRORS.VALIDATION_ERROR,
-        data: `Multiple tasks found containing "${parameters.text}". Please be more specific:\n${taskList}`
-      });
-    }
-
-    const task = matchingTasks[0];
-    const updatedTask = this.taskService.updateTask(task.id, {
-      completed: true,
-      updatedAt: new Date()
-    });
-
-    const result: ToolResult = {
-      content: [
-        {
-          type: 'text',
-          text: `Task "${updatedTask!.text}" marked as completed`
-        }
-      ]
-    };
-
-    logger.info('Task completed by text search', { task: updatedTask, searchText });
-    return result;
+    logger.info('Checklist created', { id: checklist.id, name: checklist.name });
+    return makeResult(checklist);
   }
 
-  private async analyzeTasks(parameters: { analysis_type: AnalysisType }): Promise<ToolResult> {
-    const analytics = this.taskService.getAnalytics();
-    
-    let analysis = '';
-
-    if (parameters.analysis_type === 'summary') {
-      analysis = `Task Summary: ${analytics.total} total tasks, ${analytics.completed} completed, ${analytics.pending} pending`;
-    } else if (parameters.analysis_type === 'progress') {
-      const completionRate = analytics.total > 0 ? (analytics.completed / analytics.total * 100).toFixed(1) : '0';
-      analysis = `Progress: ${completionRate}% completion rate`;
-    } else if (parameters.analysis_type === 'suggestions') {
-      analysis = analytics.pending > 0 ? 
-        `Suggestions: You have ${analytics.pending} pending tasks. Consider prioritizing them.` :
-        'Great job! All tasks are completed.';
-    }
-
-    const result: ToolResult = {
-      content: [
-        {
-          type: 'text',
-          text: analysis
-        }
-      ]
-    };
-
-    return result;
+  private addItem(params: {
+    checklist_id: string;
+    name: string;
+    description?: string;
+    required?: boolean;
+  }): ToolResult {
+    const item = this.checklistService.addItem(
+      params.checklist_id,
+      params.name,
+      params.description,
+      params.required
+    );
+    logger.info('Item added', { checklistId: params.checklist_id, itemId: item.id });
+    return makeResult(item);
   }
 
-  private async deleteTask(parameters: { id: string }): Promise<ToolResult> {
-    const task = this.taskService.getTaskById(parameters.id);
-    if (!task) {
+  private submitItem(params: {
+    checklist_id: string;
+    item_id: string;
+    note?: string;
+  }): ToolResult {
+    const item = this.checklistService.submitItem(
+      params.checklist_id,
+      params.item_id,
+      params.note
+    );
+    logger.info('Item submitted', { checklistId: params.checklist_id, itemId: item.id });
+    return makeResult(item);
+  }
+
+  private getChecklist(params: { checklist_id: string }): ToolResult {
+    const checklist = this.checklistService.getChecklistById(params.checklist_id);
+    if (!checklist) {
       throw new MCPError({
         ...MCP_ERRORS.VALIDATION_ERROR,
-        data: `Task with ID ${parameters.id} not found`
+        data: `Checklist with ID '${params.checklist_id}' not found`
       });
     }
-
-    this.taskService.deleteTask(parameters.id);
-
-    const result: ToolResult = {
-      content: [
-        {
-          type: 'text',
-          text: `Task "${task.text}" deleted successfully`
-        }
-      ]
-    };
-
-    logger.info('Task deleted', { task });
-    return result;
+    return makeResult(checklist);
   }
 
-  private async clearAllTasks(_parameters: any): Promise<ToolResult> {
-    const clearedCount = this.taskService.getTotalCount();
-    this.taskService.clearAllTasks();
+  private getMissing(params: { checklist_id: string }): ToolResult {
+    const missing = this.checklistService.getMissingItems(params.checklist_id);
+    return makeResult(missing);
+  }
 
-    const result: ToolResult = {
-      content: [
-        {
-          type: 'text',
-          text: `Cleared ${clearedCount} tasks from the todo list`
-        }
-      ]
-    };
+  private listChecklists(): ToolResult {
+    const checklists = this.checklistService.listChecklists();
+    return makeResult(checklists);
+  }
 
-    logger.info('All tasks cleared', { count: clearedCount });
-    return result;
+  private deleteChecklist(params: { checklist_id: string }): ToolResult {
+    const deleted = this.checklistService.deleteChecklist(params.checklist_id);
+    logger.info('Checklist deleted', { id: deleted.id });
+    return makeResult({ deleted: true, id: deleted.id });
   }
 }

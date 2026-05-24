@@ -2,7 +2,6 @@ import { JSON_RPC_ERRORS } from './constants';
 import { MCPError } from '../utils/validator';
 import { JsonRpcRequest, JsonRpcResponse, MCPServerInfo } from '../types/mcp';
 import { ToolHandler } from '../handlers/tool-handler';
-import { ResourceHandler } from '../handlers/resource-handler';
 
 export function createMCPResponse(id: string | number | null, result?: any, error?: Error | MCPError): JsonRpcResponse {
   const response: JsonRpcResponse = { jsonrpc: '2.0', id };
@@ -15,7 +14,6 @@ export function createMCPResponse(id: string | number | null, result?: any, erro
   if (error instanceof MCPError) {
     response.error = error.toJSON();
     return response;
-
   }
 
   response.error = {
@@ -30,12 +28,10 @@ export function createMCPResponse(id: string | number | null, result?: any, erro
 export class MessageHandler {
   private serverInfo: MCPServerInfo;
   private toolHandler: ToolHandler;
-  private resourceHandler: ResourceHandler;
 
-  constructor(serverInfo: MCPServerInfo, toolHandler: ToolHandler, resourceHandler: ResourceHandler) {
+  constructor(serverInfo: MCPServerInfo, toolHandler: ToolHandler) {
     this.serverInfo = serverInfo;
     this.toolHandler = toolHandler;
-    this.resourceHandler = resourceHandler;
   }
 
   async handleMessage(message: string): Promise<JsonRpcResponse | null> {
@@ -65,20 +61,31 @@ export class MessageHandler {
           break;
 
         case 'resources/list':
-          response = createMCPResponse(request.id ?? null, {
-            resources: ResourceHandler.getResourceDefinitions()
-          });
+          // Resources not implemented; return empty list for protocol compliance
+          response = createMCPResponse(request.id ?? null, { resources: [] });
           break;
 
         case 'resources/read':
-          const resourceResult = await this.resourceHandler.readResource(request.params?.uri);
-          response = createMCPResponse(request.id ?? null, resourceResult);
+          // Resources not implemented
+          response = createMCPResponse(
+            request.id ?? null,
+            undefined,
+            new MCPError({
+              code: -32006,
+              message: 'Request parameters failed validation',
+              data: 'Resources are not supported by this server'
+            })
+          );
           break;
 
-        case 'tools/call':
-          const toolResult = await this.toolHandler.executeTool(request.params?.name, request.params?.arguments);
+        case 'tools/call': {
+          const toolResult = await this.toolHandler.executeTool(
+            request.params?.name,
+            request.params?.arguments
+          );
           response = createMCPResponse(request.id ?? null, toolResult);
           break;
+        }
 
         default:
           response = createMCPResponse(request.id ?? null, undefined, new MCPError({
@@ -92,12 +99,12 @@ export class MessageHandler {
       let request: JsonRpcRequest | null = null;
       try {
         request = JSON.parse(message);
-      } catch (parseError) {
+      } catch (_parseError) {
         // If we can't parse the request at all, send a parse error
       }
 
       const errorResponse = createMCPResponse(
-        request?.id || null,
+        request?.id ?? null,
         undefined,
         error instanceof MCPError ? error : new MCPError({
           code: JSON_RPC_ERRORS.PARSE_ERROR.code,

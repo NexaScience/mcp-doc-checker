@@ -49,21 +49,6 @@ export type ToolInputSchema = {
   additionalProperties?: boolean;
 };
 
-export type MCPResource = {
-  uri: string;
-  name: string;
-  description?: string;
-  mimeType?: string;
-};
-
-export type Task = {
-  id: string;
-  text: string;
-  completed: boolean;
-  createdAt: Date;
-  updatedAt: Date;
-};
-
 export type ToolResult = {
   content: Array<{
     type: string;
@@ -71,14 +56,3 @@ export type ToolResult = {
   }>;
   isError?: boolean;
 };
-
-export type ResourceResult = {
-  contents: Array<{
-    uri: string;
-    mimeType?: string;
-    text?: string;
-  }>;
-};
-
-export type FilterType = 'all' | 'pending' | 'completed';
-export type AnalysisType = 'summary' | 'progress' | 'suggestions';
