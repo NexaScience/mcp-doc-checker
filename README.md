@@ -71,6 +71,18 @@ This server provides document submission checklist management — defining requi
 | `correct_document` | The correct document type has been submitted |
 | `custom` | Any condition described in natural language (e.g. "all sample fields are filled") |
 
+## Sample Files
+
+Template files are provided in the `samples/` directory:
+
+| File | Description | Fields |
+|---|---|---|
+| `samples/onboarding-form.xlsx` | 入社情報フォーム | 入社日・氏名・住所・口座情報など14項目 |
+| `samples/residence-certificate-check.xlsx` | 住民票確認チェックリスト | 発行日・マイナンバーマスキング確認など8項目 |
+| `samples/employment-contract-check.docx` | 雇用契約書確認フォーム | 会社名・労働条件・署名確認など13項目 |
+
+All templates use `{{field_name}}` placeholders to mark required fields. Pass any of these to `add_sample` and the MCP will auto-extract the field list.
+
 ## Installation
 
 1. Clone this repository:
