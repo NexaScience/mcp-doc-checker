@@ -2,12 +2,14 @@
 
 This server provides todo list functionality with tools and resources for task management.
 
-## Features
+## Usage
 
-- **Create Tasks**: Add new tasks to your todo list
-- **Manage Tasks**: Update, complete, and delete tasks
-- **Filter Tasks**: Get tasks by completion status
-- **Task Analytics**: Analyze task patterns and statistics
+| Feature | Example |
+|---|---|
+| Create Tasks | "remind me to buy groceries" |
+| Manage Tasks | "Mark task as completed" |
+| Filter Tasks | "Show me all my incomplete tasks" |
+| Task Analytics | "Analyze my task completion patterns" |
 
 ## Installation
 
@@ -82,12 +84,3 @@ To use this MCP server with Claude Desktop, you need to add it to your Claude De
 - `npm run dev` - Run server in development mode
 - `npm run build` - Build the TypeScript code
 - `npm run watch` - Build and watch for changes
-
-## Usage with Claude
-
-Once configured, you can ask Claude to help you manage your todos:
-
-- "remind me to buy groceries"
-- "Show me all my incomplete tasks"
-- "Mark task as completed"
-- "Analyze my task completion patterns"
